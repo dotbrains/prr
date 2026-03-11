@@ -21,9 +21,6 @@ func TestExecute_Version(t *testing.T) {
 
 func TestNewRootCmd(t *testing.T) {
 	root := newRootCmd("0.1.0")
-	if root == nil {
-		t.Fatal("newRootCmd returned nil")
-	}
 	if root.Use != "prr [PR_NUMBER]" {
 		t.Errorf("Use = %q", root.Use)
 	}
@@ -53,8 +50,10 @@ func TestRunAgents(t *testing.T) {
 
 	// Create config with agents.
 	configDir := filepath.Join(tmp, ".config", "prr")
-	os.MkdirAll(configDir, 0o755)
-	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(`
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(`
 default_agent: test-cli
 agents:
   test-cli:
@@ -64,7 +63,9 @@ agents:
     provider: anthropic
     model: claude-3
     api_key_env: TEST_KEY
-`), 0o644)
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	root := newRootCmd("test")
 	buf := &bytes.Buffer{}
@@ -121,8 +122,12 @@ func TestRunConfigInit_AlreadyExists(t *testing.T) {
 
 	// Pre-create config.
 	configDir := filepath.Join(tmp, ".config", "prr")
-	os.MkdirAll(configDir, 0o755)
-	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("existing"), 0o644)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	root := newRootCmd("test")
 	buf := &bytes.Buffer{}
@@ -141,8 +146,12 @@ func TestRunConfigInit_Force(t *testing.T) {
 
 	// Pre-create config.
 	configDir := filepath.Join(tmp, ".config", "prr")
-	os.MkdirAll(configDir, 0o755)
-	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("existing"), 0o644)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	root := newRootCmd("test")
 	buf := &bytes.Buffer{}
@@ -181,8 +190,12 @@ func TestRunHistory_WithEntries(t *testing.T) {
 	t.Setenv("HOME", tmp)
 
 	reviewsDir := filepath.Join(tmp, "reviews")
-	os.MkdirAll(filepath.Join(reviewsDir, "pr-42-20260101-120000"), 0o755)
-	os.MkdirAll(filepath.Join(reviewsDir, "pr-99-20260102-150000"), 0o755)
+	if err := os.MkdirAll(filepath.Join(reviewsDir, "pr-42-20260101-120000"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(reviewsDir, "pr-99-20260102-150000"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	root := newRootCmd("test")
 	buf := &bytes.Buffer{}
@@ -226,9 +239,13 @@ func TestRunClean_DryRun(t *testing.T) {
 
 	reviewsDir := filepath.Join(tmp, "reviews")
 	oldDir := filepath.Join(reviewsDir, "pr-1-20240101-120000")
-	os.MkdirAll(oldDir, 0o755)
+	if err := os.MkdirAll(oldDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	// Set mod time to 60 days ago.
-	os.Chtimes(oldDir, time.Now().Add(-60*24*time.Hour), time.Now().Add(-60*24*time.Hour))
+	if err := os.Chtimes(oldDir, time.Now().Add(-60*24*time.Hour), time.Now().Add(-60*24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
 
 	root := newRootCmd("test")
 	buf := &bytes.Buffer{}
@@ -255,8 +272,12 @@ func TestRunClean_ActualDelete(t *testing.T) {
 
 	reviewsDir := filepath.Join(tmp, "reviews")
 	oldDir := filepath.Join(reviewsDir, "pr-5-20240101-120000")
-	os.MkdirAll(oldDir, 0o755)
-	os.Chtimes(oldDir, time.Now().Add(-60*24*time.Hour), time.Now().Add(-60*24*time.Hour))
+	if err := os.MkdirAll(oldDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(oldDir, time.Now().Add(-60*24*time.Hour), time.Now().Add(-60*24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
 
 	root := newRootCmd("test")
 	buf := &bytes.Buffer{}
@@ -285,15 +306,19 @@ func TestRunAgents_WithAPIKeySet(t *testing.T) {
 	t.Setenv("MY_API_KEY", "secret")
 
 	configDir := filepath.Join(tmp, ".config", "prr")
-	os.MkdirAll(configDir, 0o755)
-	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(`
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(`
 default_agent: api-agent
 agents:
   api-agent:
     provider: anthropic
     model: claude-3
     api_key_env: MY_API_KEY
-`), 0o644)
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	root := newRootCmd("test")
 	buf := &bytes.Buffer{}

@@ -89,7 +89,7 @@ func TestClaude_Review_Success(t *testing.T) {
 				{Type: "text", Text: reviewJSON},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 
 	c := newTestClaude(t, handler)
@@ -117,7 +117,7 @@ func TestClaude_Review_Success(t *testing.T) {
 func TestClaude_Review_APIError(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte(`{"error":"rate limited"}`))
+		_, _ = w.Write([]byte(`{"error":"rate limited"}`))
 	}
 
 	c := newTestClaude(t, handler)
@@ -130,7 +130,7 @@ func TestClaude_Review_APIError(t *testing.T) {
 func TestClaude_Review_EmptyResponse(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		resp := messagesResponse{Content: []contentBlock{}}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 
 	c := newTestClaude(t, handler)
@@ -142,7 +142,7 @@ func TestClaude_Review_EmptyResponse(t *testing.T) {
 
 func TestClaude_Review_InvalidJSON(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`not json`))
+		_, _ = w.Write([]byte(`not json`))
 	}
 
 	c := newTestClaude(t, handler)

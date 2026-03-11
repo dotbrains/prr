@@ -177,9 +177,13 @@ func TestLoad_WithFile(t *testing.T) {
 
 	// Create config file at the expected path.
 	configDir := filepath.Join(tmp, ".config", "prr")
-	os.MkdirAll(configDir, 0o755)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	configPath := filepath.Join(configDir, "config.yaml")
-	os.WriteFile(configPath, []byte("default_agent: my-agent\n"), 0o644)
+	if err := os.WriteFile(configPath, []byte("default_agent: my-agent\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := Load()
 	if err != nil {
@@ -195,8 +199,12 @@ func TestLoad_InvalidYAML(t *testing.T) {
 	t.Setenv("HOME", tmp)
 
 	configDir := filepath.Join(tmp, ".config", "prr")
-	os.MkdirAll(configDir, 0o755)
-	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("{{bad"), 0o644)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("{{bad"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := Load()
 	if err == nil {
@@ -242,8 +250,12 @@ func TestExists_True(t *testing.T) {
 	t.Setenv("HOME", tmp)
 
 	configDir := filepath.Join(tmp, ".config", "prr")
-	os.MkdirAll(configDir, 0o755)
-	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("default_agent: x\n"), 0o644)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("default_agent: x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	exists, err := Exists()
 	if err != nil {

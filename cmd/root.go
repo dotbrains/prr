@@ -10,12 +10,9 @@ var (
 	flagAgent     string
 	flagAll       bool
 	flagOutputDir string
-	appVersion    string
 )
 
 func newRootCmd(version string) *cobra.Command {
-	appVersion = version
-
 	root := &cobra.Command{
 		Use:   "prr [PR_NUMBER]",
 		Short: "AI-powered PR code review CLI",

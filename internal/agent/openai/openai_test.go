@@ -86,7 +86,7 @@ func TestGPT_Review_Success(t *testing.T) {
 				{Message: chatMessage{Role: "assistant", Content: reviewJSON}},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 
 	g := newTestGPT(t, handler)
@@ -114,7 +114,7 @@ func TestGPT_Review_Success(t *testing.T) {
 func TestGPT_Review_APIError(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"server error"}`))
+		_, _ = w.Write([]byte(`{"error":"server error"}`))
 	}
 
 	g := newTestGPT(t, handler)
@@ -127,7 +127,7 @@ func TestGPT_Review_APIError(t *testing.T) {
 func TestGPT_Review_EmptyChoices(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		resp := chatResponse{Choices: []chatChoice{}}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 
 	g := newTestGPT(t, handler)
@@ -139,7 +139,7 @@ func TestGPT_Review_EmptyChoices(t *testing.T) {
 
 func TestGPT_Review_InvalidJSON(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`broken`))
+		_, _ = w.Write([]byte(`broken`))
 	}
 
 	g := newTestGPT(t, handler)

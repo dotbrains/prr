@@ -154,9 +154,9 @@ func TestMatchDoubleStar_ExtSuffix(t *testing.T) {
 }
 
 func TestMatchDoubleStar_NoMatch(t *testing.T) {
-	// Pattern that doesn't match either form.
+	// bare ** doesn't match dir/** or **/*.ext forms
 	if matchDoubleStar("src/main.go", "**") {
-		// bare ** doesn't match dir/** or **/*.ext forms
+		t.Error("bare ** should not match")
 	}
 }
 

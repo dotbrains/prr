@@ -189,10 +189,18 @@ func TestListReviewDirs(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create some fake review dirs
-	os.MkdirAll(filepath.Join(dir, "pr-100-20250101-120000"), 0o755)
-	os.MkdirAll(filepath.Join(dir, "pr-200-20250102-120000"), 0o755)
-	os.MkdirAll(filepath.Join(dir, "not-a-review"), 0o755)
-	os.WriteFile(filepath.Join(dir, "somefile.txt"), []byte("not a dir"), 0o644)
+	if err := os.MkdirAll(filepath.Join(dir, "pr-100-20250101-120000"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "pr-200-20250102-120000"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "not-a-review"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "somefile.txt"), []byte("not a dir"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	entries, err := ListReviewDirs(dir)
 	if err != nil {
@@ -231,14 +239,20 @@ func TestCleanOlderThan(t *testing.T) {
 
 	// Create an old review dir
 	oldDir := filepath.Join(dir, "pr-100-20240101-120000")
-	os.MkdirAll(oldDir, 0o755)
+	if err := os.MkdirAll(oldDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	// Set mtime to 90 days ago
 	oldTime := time.Now().Add(-90 * 24 * time.Hour)
-	os.Chtimes(oldDir, oldTime, oldTime)
+	if err := os.Chtimes(oldDir, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a new review dir
 	newDir := filepath.Join(dir, "pr-200-20250301-120000")
-	os.MkdirAll(newDir, 0o755)
+	if err := os.MkdirAll(newDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	removed, err := CleanOlderThan(dir, 30*24*time.Hour, false)
 	if err != nil {
@@ -264,9 +278,13 @@ func TestCleanOlderThan_DryRun(t *testing.T) {
 	dir := t.TempDir()
 
 	oldDir := filepath.Join(dir, "pr-100-20240101-120000")
-	os.MkdirAll(oldDir, 0o755)
+	if err := os.MkdirAll(oldDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	oldTime := time.Now().Add(-90 * 24 * time.Hour)
-	os.Chtimes(oldDir, oldTime, oldTime)
+	if err := os.Chtimes(oldDir, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
 
 	removed, err := CleanOlderThan(dir, 30*24*time.Hour, true)
 	if err != nil {
