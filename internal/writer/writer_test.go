@@ -169,6 +169,95 @@ func TestWrite_MultiAgent(t *testing.T) {
 	}
 }
 
+func TestSafeBranchName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"main", "main"},
+		{"feature/auth", "feature-auth"},
+		{"user/nick/fix", "user-nick-fix"},
+		{"branch with spaces", "branch-with-spaces"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := safeBranchName(tt.input)
+		if got != tt.want {
+			t.Errorf("safeBranchName(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestWrite_LocalMode(t *testing.T) {
+	dir := t.TempDir()
+
+	output := &agent.ReviewOutput{
+		Summary:  "Local review.",
+		Comments: []agent.ReviewComment{{File: "main.go", StartLine: 1, Severity: "nit", Body: "ok"}},
+	}
+
+	opts := WriteOptions{
+		BaseDir:    dir,
+		PRNumber:   0,
+		AgentName:  "claude",
+		Model:      "sonnet",
+		BaseBranch: "main",
+		HeadBranch: "feature/auth",
+	}
+
+	reviewDir, err := Write(output, opts)
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	// Directory should use branch-based naming
+	if !strings.Contains(reviewDir, "review-main-vs-feature-auth") {
+		t.Errorf("expected branch-based dir name, got %q", reviewDir)
+	}
+
+	// Summary should show branch comparison, not PR #0
+	summary, _ := os.ReadFile(filepath.Join(reviewDir, "summary.md"))
+	if strings.Contains(string(summary), "PR #0") {
+		t.Error("summary should not contain PR #0 for local reviews")
+	}
+	if !strings.Contains(string(summary), "Review: main") {
+		t.Error("summary should contain branch comparison header")
+	}
+}
+
+func TestWriteMulti_LocalMode(t *testing.T) {
+	dir := t.TempDir()
+
+	outputs := map[string]*AgentOutput{
+		"claude": {
+			Output: &agent.ReviewOutput{
+				Summary:  "Claude.",
+				Comments: []agent.ReviewComment{{File: "a.go", StartLine: 1, Severity: "nit", Body: "ok"}},
+			},
+			Model: "sonnet",
+		},
+	}
+
+	reviewDir, err := WriteMulti(outputs, WriteMultiOptions{
+		BaseDir:    dir,
+		PRNumber:   0,
+		BaseBranch: "develop",
+		HeadBranch: "feature/new-thing",
+	})
+	if err != nil {
+		t.Fatalf("WriteMulti failed: %v", err)
+	}
+
+	if !strings.Contains(reviewDir, "review-develop-vs-feature-new-thing") {
+		t.Errorf("expected branch-based dir name, got %q", reviewDir)
+	}
+
+	// Check agent subdirectory
+	if _, err := os.Stat(filepath.Join(reviewDir, "claude", "summary.md")); os.IsNotExist(err) {
+		t.Error("claude/summary.md not created")
+	}
+}
+
 func TestPathToFilename(t *testing.T) {
 	tests := []struct {
 		input string

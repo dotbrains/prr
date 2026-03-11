@@ -1,6 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/dotbrains/prr/internal/agent"
@@ -116,6 +120,184 @@ func TestPathToSafeName(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("pathToSafeName(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+// initGitRepo creates a temp git repo with an initial commit on "main".
+// gitEnv returns environment variables for git commands in tests.
+func gitEnv() []string {
+	return []string{
+		"HOME=/dev/null",
+		"GIT_AUTHOR_NAME=test",
+		"GIT_AUTHOR_EMAIL=test@test.com",
+		"GIT_COMMITTER_NAME=test",
+		"GIT_COMMITTER_EMAIL=test@test.com",
+		"GIT_CONFIG_NOSYSTEM=1",
+	}
+}
+
+// initGitRepo creates a temp git repo with an initial commit on "main".
+func initGitRepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = gitEnv()
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v failed: %s: %s", args, err, out)
+		}
+	}
+	run("init", "-b", "main")
+	run("commit", "--allow-empty", "--no-gpg-sign", "-m", "init")
+	return dir
+}
+
+func TestIsLocalMode(t *testing.T) {
+	// Save and restore
+	oldRepo, oldBase := flagRepo, flagBase
+	defer func() { flagRepo, oldBase = oldRepo, oldBase }()
+
+	flagRepo = ""
+	flagBase = ""
+	if isLocalMode() {
+		t.Error("expected false when no flags set")
+	}
+
+	flagRepo = "/some/path"
+	flagBase = ""
+	if !isLocalMode() {
+		t.Error("expected true when --repo is set")
+	}
+
+	flagRepo = ""
+	flagBase = "main"
+	if !isLocalMode() {
+		t.Error("expected true when --base is set")
+	}
+
+	flagRepo = "/some/path"
+	flagBase = "main"
+	if !isLocalMode() {
+		t.Error("expected true when both flags set")
+	}
+}
+
+func TestRunLocalReview_NotARepo(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"--repo", filepath.Join(tmp, "nonexistent"), "--base", "main"})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for non-repo path")
+	}
+}
+
+func TestRunLocalReview_SameBranch(t *testing.T) {
+	repoDir := initGitRepo(t)
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"--repo", repoDir, "--base", "main", "--head", "main"})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for same base and head branch")
+	}
+	if !contains(err.Error(), "same") {
+		t.Errorf("expected 'same' in error, got: %v", err)
+	}
+}
+
+func TestRunLocalReview_EmptyDiff(t *testing.T) {
+	repoDir := initGitRepo(t)
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	// Create a branch with no changes
+	cmd := exec.Command("git", "-C", repoDir, "branch", "feature")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git branch failed: %s: %s", err, out)
+	}
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"--repo", repoDir, "--base", "main", "--head", "feature"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !contains(buf.String(), "No diff") {
+		t.Errorf("expected 'No diff' message, got: %s", buf.String())
+	}
+}
+
+func TestRunLocalReview_WithDiff_AgentError(t *testing.T) {
+	repoDir := initGitRepo(t)
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	// Create a config with a non-existent agent
+	configDir := filepath.Join(tmp, ".config", "prr")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(`
+default_agent: fake
+agents:
+  fake:
+    provider: nonexistent-provider
+    model: fake-model
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a branch with changes
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repoDir}, args...)...)
+		cmd.Env = gitEnv()
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v failed: %s: %s", args, err, out)
+		}
+	}
+	runGit("checkout", "-b", "feature")
+	if err := os.WriteFile(filepath.Join(repoDir, "hello.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit("add", ".")
+	runGit("commit", "--no-gpg-sign", "-m", "add file")
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"--repo", repoDir, "--base", "main", "--head", "feature"})
+
+	err := root.Execute()
+	// Should fail at agent creation (unknown provider)
+	if err == nil {
+		t.Fatal("expected error for unknown provider")
+	}
+	// But the local review code path was exercised up to the agent call
+	out := buf.String()
+	if !contains(out, "Local review") {
+		t.Errorf("expected 'Local review' in output, got: %s", out)
 	}
 }
 
