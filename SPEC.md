@@ -11,7 +11,7 @@
 ![macOS](https://img.shields.io/badge/-macOS-000000?style=flat-square&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
 
-A lightweight CLI that runs AI-powered code reviews on GitHub pull requests and outputs structured, human-readable markdown comments for easy copy-paste into GitHub. The primary workflow is: resolve PR → fetch diff → send to AI agent → write review comments to `reviews/` as markdown files.
+A lightweight CLI that runs AI-powered code reviews on GitHub pull requests or local git branches and outputs structured, human-readable markdown comments for easy copy-paste into GitHub. Two modes: **PR mode** (resolve PR → fetch diff via `gh` → send to AI agent → write review) and **local mode** (diff two branches in any git repo → send to AI agent → write review).
 
 ## Problem
 
@@ -97,7 +97,7 @@ Adding a new provider (e.g. Google Gemini, local Ollama) requires implementing t
 
 ### `prr [PR_NUMBER]`
 
-Run an AI code review on a pull request.
+Run an AI code review on a pull request (PR mode).
 
 - If `PR_NUMBER` is omitted, auto-detects from the current branch via `gh pr status --json number`.
 - Fetches the PR diff and metadata via `gh pr diff` and `gh pr view`.
@@ -115,6 +115,42 @@ Steps:
 8. Parses the structured response into review comments.
 9. Writes output to `reviews/pr-<number>-<timestamp>/`.
 10. Prints a summary to stdout.
+
+### `prr --base <branch>` / `prr --repo <path> --base <branch>`
+
+Run an AI code review on local git branches (local mode). No GitHub PR required.
+
+- `--repo <path>` — Path to a local git repo. Defaults to the current working directory if `--base` is provided without `--repo`.
+- `--base <branch>` — Base branch to diff against. If omitted when `--repo` is provided, auto-detects the default branch (`origin/HEAD`, `main`, or `master`).
+- `--head <branch>` — Head branch. Defaults to the current branch (`HEAD`).
+
+When `--repo` or `--base` is provided, `prr` enters local mode and skips all `gh` operations.
+
+Steps:
+1. Validates the repo path is a git repository.
+2. Resolves base branch (explicit or auto-detect default).
+3. Resolves head branch (explicit or current branch).
+4. Validates base ≠ head.
+5. Fetches the diff via `git diff base...head`.
+6. Filters out files matching `ignore_patterns`.
+7. Validates diff size against `max_diff_lines`.
+8. Sends diff + branch metadata to the AI agent (no existing comments — local mode has no PR context).
+9. Parses the structured response into review comments.
+10. Writes output to `reviews/review-<base>-vs-<head>-<timestamp>/`.
+11. Prints a summary to stdout.
+
+```
+$ prr --base main
+→ Local review: main → feature/auth
+→ repo:  /Users/dev/myproject
+→ files:  8 (2 filtered)
+→ agent:  claude (sonnet)
+→ Reviewing...
+
+✓ Review complete.
+→ 1 critical, 3 suggestions, 2 nits
+→ Output: reviews/review-main-vs-feature-auth-20250311-143000/
+```
 
 ```
 $ prr 17509
@@ -212,6 +248,9 @@ $ prr clean --days 7
 | `--agent` | Use a specific configured agent (default: from config) |
 | `--all` | Run review with all configured agents in parallel |
 | `--output-dir` | Override the output directory (default: `reviews/`) |
+| `--repo` | Path to a local git repo (enables local mode) |
+| `--base` | Base branch to diff against (enables local mode) |
+| `--head` | Head branch (defaults to current branch) |
 | `--version` | Print the version and exit |
 | `--help` | Show help for any command |
 
@@ -221,6 +260,9 @@ $ prr clean --days 7
 - `--agent` — Use a specific agent by name
 - `--all` — Review with all configured agents
 - `--output-dir` — Override output directory
+- `--repo` — Path to a local git repo (enables local mode)
+- `--base` — Base branch to diff against (enables local mode)
+- `--head` — Head branch (defaults to current branch)
 - `--no-praise` — Skip positive/praise comments
 - `--min-severity` — Minimum severity to include (`critical`, `suggestion`, `nit`)
 
@@ -231,10 +273,18 @@ $ prr clean --days 7
 - `--days` — Remove reviews older than N days (default: 30)
 - `--dry-run` — Show what would be removed without deleting
 
-## PR Resolution
+## Mode Resolution
 
-The `prr` command shares the same resolution pattern as other dotbrains CLIs:
+`prr` operates in one of two modes based on the flags provided:
 
+**Local mode** — activated when `--repo` or `--base` is provided:
+1. Resolves repo path (`--repo` or current working directory).
+2. Validates the path is a git repository.
+3. Resolves base branch (`--base`, or auto-detects default via `origin/HEAD` → `main` → `master`).
+4. Resolves head branch (`--head`, or current branch via `git rev-parse --abbrev-ref HEAD`).
+5. If base == head, exits with an error.
+
+**PR mode** (default) — the `prr` command shares the same resolution pattern as other dotbrains CLIs:
 1. If a positional argument is provided, use it as the PR number (validated as an integer).
 2. Otherwise, run `gh pr status --json number` and extract `currentBranch.number`.
 3. If no PR is found or `gh` fails, exit with an error.
@@ -243,7 +293,7 @@ The `prr` command shares the same resolution pattern as other dotbrains CLIs:
 
 ### Directory Structure
 
-Single agent (default):
+PR mode — single agent (default):
 
 ```
 reviews/
@@ -254,6 +304,18 @@ reviews/
       src-middleware-session-go.md
       cmd-server-go.md
 ```
+
+Local mode — single agent:
+
+```
+reviews/
+  review-main-vs-feature-auth-20250311-143000/
+    summary.md
+    files/
+      src-auth-handler-go.md
+```
+
+Branch names with slashes are sanitized (`feature/auth` → `feature-auth`).
 
 Multi-agent (`--all`):
 
@@ -270,16 +332,31 @@ reviews/
         src-auth-handler-go.md
 ```
 
+The same nesting applies to local mode (`review-<base>-vs-<head>-<timestamp>/claude/...`).
+
 ### `summary.md`
 
-A high-level review of the entire PR:
+A high-level review of the changes. Header varies by mode:
 
+PR mode:
 ```markdown
 # PR #17509 — Fix user authentication race condition
 
 **Agent:** claude (claude-sonnet-4-20250514)
 **Date:** 2025-03-11 14:30:00
-**Files reviewed:** 12
+```
+
+Local mode:
+```markdown
+# Review: main → feature/auth
+
+**Agent:** claude (sonnet)
+**Date:** 2025-03-11 14:30:00
+```
+
+Both include:
+
+```markdown
 
 ## Overview
 
@@ -330,7 +407,9 @@ Not a bug here, but it makes the function harder to follow.
 
 ## Existing Comments as Context
 
-When reviewing a PR, `prr` fetches existing comments already posted on the PR and includes them as context for the AI agent. This prevents the AI from repeating feedback that's already been given, and lets it focus on new issues.
+When reviewing a PR (PR mode only), `prr` fetches existing comments already posted on the PR and includes them as context for the AI agent. This prevents the AI from repeating feedback that's already been given, and lets it focus on new issues.
+
+> **Note:** Local mode does not fetch existing comments — there is no PR to pull context from.
 
 ### What's fetched
 
@@ -519,12 +598,13 @@ The system prompt instructs the AI to write comments that read like a senior eng
 
 ## Dependencies
 
-- **gh** (GitHub CLI) — PR number auto-detection, diff fetching, PR metadata. Required.
+- **git** — Required for local mode (`--repo` / `--base`). Uses `git diff`, `git rev-parse`, `git symbolic-ref` via `git -C <path>`.
+- **gh** (GitHub CLI) — PR number auto-detection, diff fetching, PR metadata. Required for PR mode.
 - **claude** (Claude Code CLI) — Required for `claude-cli` provider. Install via `npm install -g @anthropic-ai/claude-code`.
 - **codex** (OpenAI Codex CLI) — Required for `codex-cli` provider. Install via `npm install -g @openai/codex`.
 - **Network access** — Required for API-based providers. CLI providers handle auth internally.
 
-Only `gh` is required for all configurations. The AI CLI (`claude` or `codex`) must be installed for the respective CLI provider. API-based providers (`anthropic`, `openai`) use Go's `net/http` directly.
+For local mode, only `git` is required. For PR mode, `gh` is required. The AI CLI (`claude` or `codex`) must be installed for the respective CLI provider. API-based providers (`anthropic`, `openai`) use Go's `net/http` directly.
 
 ## Installation
 
@@ -564,7 +644,9 @@ make install
 ```mermaid
 flowchart LR
     User -->|prr 17509| CLI[prr binary]
-    CLI --> GH[gh CLI<br>PR auto-detect + diff]
+    User -->|prr --base main| CLI
+    CLI --> GH[gh CLI<br>PR mode]
+    CLI --> Git[git CLI<br>Local mode]
     CLI --> Config[~/.config/prr/config.yaml]
     CLI --> Registry[Agent Registry]
     Registry --> ClaudeCLI[claude CLI<br>Claude]
@@ -664,6 +746,9 @@ prr/
 │   ├── gh/                       # GitHub CLI wrapper
 │   │   ├── client.go             # PR resolution, diff fetching, metadata
 │   │   └── client_test.go        # Client tests (mock exec)
+│   ├── git/                      # Local git CLI wrapper
+│   │   ├── client.go             # Branch detection, diff fetching, repo validation
+│   │   └── client_test.go        # Client tests (mock exec)
 │   ├── writer/                   # Output file generation
 │   │   ├── writer.go             # Write ReviewOutput to markdown files
 │   │   └── writer_test.go        # Writer tests
@@ -694,7 +779,8 @@ All core logic is tested by injecting interfaces/mocks for external dependencies
 | **Agent registry** | Known provider → factory, unknown provider → error, duplicate registration | Pure logic, no mocks |
 | **Anthropic agent** | Correct API request (headers, body, model), parse response, handle errors (rate limit, auth, malformed) | Mock HTTP server (`httptest`) |
 | **OpenAI agent** | Same as Anthropic, adapted for OpenAI response format | Mock HTTP server (`httptest`) |
-| **Prompt construction** | System prompt includes severity levels, human-writing rules, PR context | Assert on string content |
+| **Prompt construction** | System prompt includes severity levels, human-writing rules, PR/local context | Assert on string content |
+| **Git client** | IsRepo, GetCurrentBranch, GetDefaultBranch (origin/HEAD → main → master), GetDiff, GetCommitCount | Mock `git` commands |
 | **Output writer** | Correct directory structure, file naming, markdown formatting, multi-agent nesting | Temp directory (`t.TempDir()`) |
 | **Config loading** | Load from YAML, fallback to defaults, invalid YAML error, round-trip | Temp directory with fixture files |
 | **History listing** | Correct parsing of review directory names, sorting, empty state | Temp directory |
@@ -725,7 +811,7 @@ Triggered on push to `main` and all pull requests.
    - Steps: checkout → setup Go → `go vet ./...` → `go test -race -coverprofile=coverage.out ./...` → enforce ≥ 80% coverage → upload coverage artifact
 
 2. **lint**
-   - Uses `golangci/golangci-lint-action@v6`
+   - Uses `golangci/golangci-lint-action@v8`
    - Runs `golangci-lint run`
 
 3. **build**
@@ -823,6 +909,36 @@ $ prr 17509 --all
   gpt/     1 critical, 3 suggestions, 4 nits
 ```
 
+### Review local branches (no PR required)
+
+```
+$ prr --base main
+→ Local review: main → feature/auth
+→ repo:  .
+→ files:  8 (2 filtered)
+→ agent:  claude (sonnet)
+→ Reviewing...
+
+✓ Review complete.
+→ 1 critical, 3 suggestions, 2 nits
+→ Output: reviews/review-main-vs-feature-auth-20250311-143000/
+```
+
+### Review a specific repo
+
+```
+$ prr --repo ../other-project --base develop --head feature/api --agent gpt
+→ Local review: develop → feature/api
+→ repo:  ../other-project
+→ files:  15 (4 filtered)
+→ agent:  gpt (gpt-4o)
+→ Reviewing...
+
+✓ Review complete.
+→ 0 critical, 6 suggestions, 3 nits
+→ Output: reviews/review-develop-vs-feature-api-20250311-160000/
+```
+
 ### Copy-paste a comment into GitHub
 
 ```
@@ -873,6 +989,7 @@ Default: claude
 - Comments can be reviewed, edited, and cherry-picked before posting.
 - Works without GitHub API tokens or webhook permissions.
 - Review output persists locally for reference.
+- Local mode (`--repo` / `--base`) works entirely offline — no GitHub needed at all.
 
 ### 2. Provider-agnostic agent interface
 
