@@ -157,7 +157,7 @@ func initGitRepo(t *testing.T) string {
 func TestIsLocalMode(t *testing.T) {
 	// Save and restore
 	oldRepo, oldBase := flagRepo, flagBase
-	defer func() { flagRepo, oldBase = oldRepo, oldBase }()
+	defer func() { flagRepo, flagBase = oldRepo, oldBase }()
 
 	flagRepo = ""
 	flagBase = ""
