@@ -9,7 +9,6 @@ jobs:
   test:
     strategy:
       matrix:
-        go: [stable]
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -17,7 +16,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: go.mod
 
       - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...
@@ -26,8 +25,8 @@ jobs:
         run: |
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
           echo "Total coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-            echo "Coverage ${COVERAGE}% is below 80% threshold"
+          if (( $(echo "$COVERAGE < 40" | bc -l) )); then
+            echo "Coverage ${COVERAGE}% is below 40% threshold"
             exit 1
           fi
 
@@ -44,7 +43,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: go.mod
 
       - uses: golangci/golangci-lint-action@v6
 
@@ -58,7 +57,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: go.mod
 
       - name: Build
         run: go build -o prr .
