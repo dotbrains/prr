@@ -3,7 +3,7 @@
 [![CI](https://github.com/dotbrains/prr/actions/workflows/ci.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Run AI-powered code reviews on GitHub pull requests. Outputs structured, human-readable markdown comments for easy copy-paste into GitHub.
+Run AI-powered code reviews on GitHub pull requests or local git branches. Outputs structured, human-readable markdown comments for easy copy-paste into GitHub.
 
 ## Quick Start
 
@@ -22,14 +22,26 @@ prr 17509 --agent gpt
 
 # Review with all configured agents
 prr 17509 --all
+
+# Review a local branch against main (no PR required)
+prr --base main
+
+# Review a specific repo and branch
+prr --repo /path/to/repo --base main --head feature-branch
 ```
 
 ## How It Works
 
-1. `prr` resolves the PR number (from an argument or auto-detects from the current branch via `gh`).
+**PR mode** (default):
+1. Resolves the PR number (from an argument or auto-detects from the current branch via `gh`).
 2. Fetches the PR diff and metadata using the GitHub CLI.
 3. Sends the diff to an AI agent (Claude by default).
 4. Writes structured review comments to `reviews/pr-<number>-<timestamp>/`.
+
+**Local mode** (`--repo` or `--base`):
+1. Diffs two branches in any local git repo (no GitHub PR needed).
+2. Sends the diff to an AI agent.
+3. Writes review comments to `reviews/review-<base>-vs-<head>-<timestamp>/`.
 
 Output is organized as one markdown file per reviewed source file, designed for direct copy-paste into GitHub's PR review interface.
 
@@ -83,6 +95,8 @@ Config lives at `~/.config/prr/config.yaml`. See [SPEC.md](SPEC.md) for the full
 | Command | Description |
 |---|---|
 | `prr [PR_NUMBER]` | Run AI code review on a PR |
+| `prr --base <branch>` | Review current branch against a base branch (local mode) |
+| `prr --repo <path> --base <branch>` | Review a specific local repo |
 | `prr agents` | List configured agents and their status |
 | `prr config init` | Create default config file |
 | `prr history` | List past reviews |
@@ -90,6 +104,7 @@ Config lives at `~/.config/prr/config.yaml`. See [SPEC.md](SPEC.md) for the full
 
 ## Output
 
+PR reviews:
 ```
 reviews/
   pr-17509-20250311-143000/
@@ -99,11 +114,21 @@ reviews/
       src-middleware-session-go.md
 ```
 
+Local branch reviews:
+```
+reviews/
+  review-main-vs-feature-auth-20250311-143000/
+    summary.md
+    files/
+      src-auth-handler-go.md
+```
+
 Each file contains comments organized by line number with severity levels (`critical`, `suggestion`, `nit`, `praise`).
 
 ## Dependencies
 
-- **[gh](https://cli.github.com/)** — GitHub CLI (required for PR detection and diff fetching)
+- **[git](https://git-scm.com/)** — required for local mode
+- **[gh](https://cli.github.com/)** — GitHub CLI (required for PR mode)
 - **API key** — for your chosen AI provider (e.g. `ANTHROPIC_API_KEY` for Claude)
 
 ## License
