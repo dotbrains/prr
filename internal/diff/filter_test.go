@@ -128,3 +128,49 @@ func TestFilter_GeneratedFiles(t *testing.T) {
 		t.Fatalf("expected 1 kept, got %d", len(kept))
 	}
 }
+
+func TestMatchDoubleStar_DirPrefix(t *testing.T) {
+	// dir/** should match files inside the dir.
+	if !matchDoubleStar("vendor/pkg/a.go", "vendor/**") {
+		t.Error("expected match for vendor/pkg/a.go with vendor/**")
+	}
+	if matchDoubleStar("src/vendor/a.go", "vendor/**") {
+		t.Error("should not match src/vendor/a.go with vendor/**")
+	}
+	// Exact prefix match (no trailing slash).
+	if !matchDoubleStar("vendor", "vendor/**") {
+		t.Error("expected match for exact prefix 'vendor'")
+	}
+}
+
+func TestMatchDoubleStar_ExtSuffix(t *testing.T) {
+	// **/*.ext should match any file with that extension.
+	if !matchDoubleStar("src/deep/nested/file.pb.go", "**/*.pb.go") {
+		t.Error("expected match for **/*.pb.go")
+	}
+	if matchDoubleStar("file.go", "**/*.pb.go") {
+		t.Error("should not match file.go with **/*.pb.go")
+	}
+}
+
+func TestMatchDoubleStar_NoMatch(t *testing.T) {
+	// Pattern that doesn't match either form.
+	if matchDoubleStar("src/main.go", "**") {
+		// bare ** doesn't match dir/** or **/*.ext forms
+	}
+}
+
+func TestContainsDoubleStar(t *testing.T) {
+	if !containsDoubleStar("vendor/**") {
+		t.Error("expected true for vendor/**")
+	}
+	if !containsDoubleStar("**/*.go") {
+		t.Error("expected true for **/*.go")
+	}
+	if !containsDoubleStar("src/**/test") {
+		t.Error("expected true for src/**/test")
+	}
+	if containsDoubleStar("*.go") {
+		t.Error("expected false for *.go")
+	}
+}

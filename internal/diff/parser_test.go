@@ -132,6 +132,28 @@ func TestParse_NestedPath(t *testing.T) {
 	}
 }
 
+func TestParseDiffPath(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"standard", "diff --git a/main.go b/main.go", "main.go"},
+		{"nested", "diff --git a/src/pkg/handler.go b/src/pkg/handler.go", "src/pkg/handler.go"},
+		{"no b/ prefix", "diff --git a/only-a-side", "only-a-side"},
+		{"no a/ or b/", "diff --git something", "diff --git something"},
+		{"spaces in path", "diff --git a/my file.go b/my file.go", "my file.go"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseDiffPath(tt.input)
+			if got != tt.want {
+				t.Errorf("parseDiffPath(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestLineCount(t *testing.T) {
 	tests := []struct {
 		input string

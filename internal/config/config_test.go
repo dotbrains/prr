@@ -135,3 +135,133 @@ func TestReviewConfig_SeverityLevels(t *testing.T) {
 		t.Errorf("expected %d severity levels, got %d", len(expected), len(cfg.Review.SeverityLevels))
 	}
 }
+
+func TestConfigDir(t *testing.T) {
+	dir, err := ConfigDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir == "" {
+		t.Error("expected non-empty dir")
+	}
+}
+
+func TestConfigPath(t *testing.T) {
+	path, err := ConfigPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path == "" {
+		t.Error("expected non-empty path")
+	}
+}
+
+func TestLoad_NoFile(t *testing.T) {
+	// Point HOME to an empty temp dir so no config file exists.
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Should return defaults.
+	if cfg.DefaultAgent != "claude-cli" {
+		t.Errorf("expected default agent claude-cli, got %q", cfg.DefaultAgent)
+	}
+}
+
+func TestLoad_WithFile(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	// Create config file at the expected path.
+	configDir := filepath.Join(tmp, ".config", "prr")
+	os.MkdirAll(configDir, 0o755)
+	configPath := filepath.Join(configDir, "config.yaml")
+	os.WriteFile(configPath, []byte("default_agent: my-agent\n"), 0o644)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DefaultAgent != "my-agent" {
+		t.Errorf("expected my-agent, got %q", cfg.DefaultAgent)
+	}
+}
+
+func TestLoad_InvalidYAML(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	configDir := filepath.Join(tmp, ".config", "prr")
+	os.MkdirAll(configDir, 0o755)
+	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("{{bad"), 0o644)
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error for invalid YAML")
+	}
+}
+
+func TestSave_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	cfg := DefaultConfig()
+	cfg.DefaultAgent = "saved-agent"
+
+	if err := Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.DefaultAgent != "saved-agent" {
+		t.Errorf("expected saved-agent, got %q", loaded.DefaultAgent)
+	}
+}
+
+func TestExists_False(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	exists, err := Exists()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Error("expected false when no config file")
+	}
+}
+
+func TestExists_True(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	configDir := filepath.Join(tmp, ".config", "prr")
+	os.MkdirAll(configDir, 0o755)
+	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("default_agent: x\n"), 0o644)
+
+	exists, err := Exists()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Error("expected true when config file exists")
+	}
+}
+
+func TestCLIProviders(t *testing.T) {
+	if !CLIProviders["claude-cli"] {
+		t.Error("expected claude-cli in CLIProviders")
+	}
+	if !CLIProviders["codex-cli"] {
+		t.Error("expected codex-cli in CLIProviders")
+	}
+	if CLIProviders["anthropic"] {
+		t.Error("anthropic should not be a CLI provider")
+	}
+}

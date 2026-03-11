@@ -75,6 +75,60 @@ func TestWrite_SingleAgent(t *testing.T) {
 	}
 }
 
+func TestWrite_MultiAgentFlag(t *testing.T) {
+	dir := t.TempDir()
+
+	output := &agent.ReviewOutput{
+		Summary:  "Review.",
+		Comments: []agent.ReviewComment{{File: "a.go", StartLine: 1, Severity: "nit", Body: "ok"}},
+	}
+
+	opts := WriteOptions{
+		BaseDir:    dir,
+		PRNumber:   7,
+		AgentName:  "claude",
+		Model:      "sonnet",
+		MultiAgent: true,
+	}
+
+	reviewDir, err := Write(output, opts)
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+	// MultiAgent nests under agent name
+	if !strings.Contains(reviewDir, "claude") {
+		t.Errorf("expected agent subdirectory, got %q", reviewDir)
+	}
+	if _, err := os.Stat(filepath.Join(reviewDir, "summary.md")); os.IsNotExist(err) {
+		t.Error("summary.md not created")
+	}
+}
+
+func TestWrite_NoModel(t *testing.T) {
+	dir := t.TempDir()
+
+	output := &agent.ReviewOutput{
+		Summary:  "Review.",
+		Comments: nil,
+	}
+
+	opts := WriteOptions{
+		BaseDir:   dir,
+		PRNumber:  8,
+		AgentName: "test",
+		Model:     "",
+	}
+
+	reviewDir, err := Write(output, opts)
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+	summary, _ := os.ReadFile(filepath.Join(reviewDir, "summary.md"))
+	if strings.Contains(string(summary), "()") {
+		t.Error("empty model should not produce parentheses")
+	}
+}
+
 func TestWrite_MultiAgent(t *testing.T) {
 	dir := t.TempDir()
 
