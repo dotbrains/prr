@@ -31,6 +31,9 @@ prr 17509 --agent gpt
 # Review with all configured agents
 prr 17509 --all
 
+# Review any PR by URL (no need to clone or cd into the repo)
+prr https://github.com/owner/repo/pull/123
+
 # Review a local branch against main (no PR required)
 prr --base main
 
@@ -41,10 +44,15 @@ prr --repo /path/to/repo --base main --head feature-branch
 ## How It Works
 
 **PR mode** (default):
-1. Resolves the PR number (from an argument or auto-detects from the current branch via `gh`).
+1. Resolves the PR number (from an argument, URL, or auto-detects from the current branch via `gh`).
 2. Fetches the PR diff and metadata using the GitHub CLI.
 3. Sends the diff to an AI agent (Claude by default).
 4. Writes structured review comments to `reviews/pr-<number>-<timestamp>/`.
+
+**URL mode** (pass a PR URL):
+1. Parses the GitHub PR URL to extract owner, repo, and PR number.
+2. Uses `gh -R owner/repo` to fetch diff and metadata remotely — no cloning needed.
+3. Review proceeds identically to PR mode.
 
 **Local mode** (`--repo` or `--base`):
 1. Diffs two branches in any local git repo (no GitHub PR needed).
@@ -103,6 +111,7 @@ Config lives at `~/.config/prr/config.yaml`. See [SPEC.md](SPEC.md) for the full
 | Command | Description |
 |---|---|
 | `prr [PR_NUMBER]` | Run AI code review on a PR |
+| `prr <PR_URL>` | Review any PR by URL (no need to be in the repo) |
 | `prr --base <branch>` | Review current branch against a base branch (local mode) |
 | `prr --repo <path> --base <branch>` | Review a specific local repo |
 | `prr agents` | List configured agents and their status |

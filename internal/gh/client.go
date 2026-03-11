@@ -46,12 +46,28 @@ type ExistingReviewComment struct {
 
 // Client wraps the gh CLI for PR operations.
 type Client struct {
-	exec exec.CommandExecutor
+	exec     exec.CommandExecutor
+	repoSlug string // optional "owner/repo" for remote operations via -R
 }
 
-// NewClient creates a new gh CLI client.
+// NewClient creates a new gh CLI client that operates on the local repo.
 func NewClient(executor exec.CommandExecutor) *Client {
 	return &Client{exec: executor}
+}
+
+// NewClientWithRepo creates a gh CLI client that targets a specific remote repo via -R.
+func NewClientWithRepo(executor exec.CommandExecutor, repoSlug string) *Client {
+	return &Client{exec: executor, repoSlug: repoSlug}
+}
+
+// ghPRArgs builds a gh pr subcommand argument list, injecting -R if a repo slug is set.
+func (c *Client) ghPRArgs(subcommand string, extra ...string) []string {
+	args := []string{"pr", subcommand}
+	if c.repoSlug != "" {
+		args = append(args, "-R", c.repoSlug)
+	}
+	args = append(args, extra...)
+	return args
 }
 
 // ResolvePRNumber resolves a PR number from an explicit argument or auto-detects from the current branch.
@@ -68,7 +84,7 @@ func (c *Client) ResolvePRNumber(ctx context.Context, arg string) (int, error) {
 	}
 
 	// Auto-detect from current branch
-	out, err := c.exec.Run(ctx, "gh", "pr", "status", "--json", "number")
+	out, err := c.exec.Run(ctx, "gh", c.ghPRArgs("status", "--json", "number")...)
 	if err != nil {
 		return 0, fmt.Errorf("auto-detecting PR number: %w\nMake sure you are on a branch with an open PR, or provide a PR number explicitly", err)
 	}
@@ -90,8 +106,8 @@ func (c *Client) ResolvePRNumber(ctx context.Context, arg string) (int, error) {
 
 // GetPRMetadata fetches PR title, body, and branch info.
 func (c *Client) GetPRMetadata(ctx context.Context, prNumber int) (*PRMetadata, error) {
-	out, err := c.exec.Run(ctx, "gh", "pr", "view", strconv.Itoa(prNumber),
-		"--json", "number,title,body,baseRefName,headRefName")
+	out, err := c.exec.Run(ctx, "gh", c.ghPRArgs("view", strconv.Itoa(prNumber),
+		"--json", "number,title,body,baseRefName,headRefName")...)
 	if err != nil {
 		return nil, fmt.Errorf("fetching PR #%d metadata: %w", prNumber, err)
 	}
@@ -105,7 +121,7 @@ func (c *Client) GetPRMetadata(ctx context.Context, prNumber int) (*PRMetadata, 
 
 // GetPRDiff fetches the unified diff for a PR.
 func (c *Client) GetPRDiff(ctx context.Context, prNumber int) (string, error) {
-	out, err := c.exec.Run(ctx, "gh", "pr", "diff", strconv.Itoa(prNumber))
+	out, err := c.exec.Run(ctx, "gh", c.ghPRArgs("diff", strconv.Itoa(prNumber))...)
 	if err != nil {
 		return "", fmt.Errorf("fetching PR #%d diff: %w", prNumber, err)
 	}
@@ -114,8 +130,8 @@ func (c *Client) GetPRDiff(ctx context.Context, prNumber int) (string, error) {
 
 // GetPRComments fetches conversation comments and review summaries for a PR.
 func (c *Client) GetPRComments(ctx context.Context, prNumber int) ([]ExistingComment, []ExistingReview, error) {
-	out, err := c.exec.Run(ctx, "gh", "pr", "view", strconv.Itoa(prNumber),
-		"--json", "comments,reviews")
+	out, err := c.exec.Run(ctx, "gh", c.ghPRArgs("view", strconv.Itoa(prNumber),
+		"--json", "comments,reviews")...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("fetching PR #%d comments: %w", prNumber, err)
 	}
@@ -168,14 +184,17 @@ func (c *Client) GetPRComments(ctx context.Context, prNumber int) ([]ExistingCom
 
 // GetPRReviewComments fetches line-level review comments for a PR.
 func (c *Client) GetPRReviewComments(ctx context.Context, prNumber int) ([]ExistingReviewComment, error) {
-	// Get repo slug (owner/name) for the API call
-	slugOut, err := c.exec.Run(ctx, "gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
-	if err != nil {
-		return nil, fmt.Errorf("detecting repo: %w", err)
-	}
-	slug := strings.TrimSpace(slugOut)
+	// Use provided slug or auto-detect
+	slug := c.repoSlug
 	if slug == "" {
-		return nil, fmt.Errorf("could not determine repository")
+		slugOut, err := c.exec.Run(ctx, "gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+		if err != nil {
+			return nil, fmt.Errorf("detecting repo: %w", err)
+		}
+		slug = strings.TrimSpace(slugOut)
+		if slug == "" {
+			return nil, fmt.Errorf("could not determine repository")
+		}
 	}
 
 	apiPath := fmt.Sprintf("repos/%s/pulls/%d/comments", slug, prNumber)

@@ -285,3 +285,108 @@ func TestGetPRReviewComments_RepoError(t *testing.T) {
 		t.Fatal("expected error when repo detection fails")
 	}
 }
+
+// Tests for -R flag injection with NewClientWithRepo
+
+func TestGetPRMetadata_WithRepoSlug(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh pr view -R dotbrains/prr 42 --json number,title,body,baseRefName,headRefName": `{
+				"number": 42,
+				"title": "Remote PR",
+				"body": "From a URL",
+				"baseRefName": "main",
+				"headRefName": "feature"
+			}`,
+		},
+	}
+	client := NewClientWithRepo(mock, "dotbrains/prr")
+
+	meta, err := client.GetPRMetadata(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if meta.Title != "Remote PR" {
+		t.Errorf("expected title 'Remote PR', got %q", meta.Title)
+	}
+}
+
+func TestGetPRDiff_WithRepoSlug(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh pr diff -R owner/repo 10": "diff --git a/f.go b/f.go\n-old\n+new",
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	diff, err := client.GetPRDiff(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff == "" {
+		t.Error("expected non-empty diff")
+	}
+}
+
+func TestGetPRComments_WithRepoSlug(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh pr view -R owner/repo 10 --json comments,reviews": `{"comments": [], "reviews": []}`,
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	comments, reviews, err := client.GetPRComments(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(comments) != 0 || len(reviews) != 0 {
+		t.Errorf("expected empty results")
+	}
+}
+
+func TestGetPRReviewComments_WithRepoSlug(t *testing.T) {
+	// When repoSlug is set, should skip gh repo view auto-detect and use slug directly
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh api repos/owner/repo/pulls/10/comments --paginate": `[]`,
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	comments, err := client.GetPRReviewComments(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(comments) != 0 {
+		t.Errorf("expected 0 comments, got %d", len(comments))
+	}
+}
+
+func TestGhPRArgs_NoSlug(t *testing.T) {
+	client := NewClient(&mockExecutor{})
+	args := client.ghPRArgs("view", "42", "--json", "number")
+	want := []string{"pr", "view", "42", "--json", "number"}
+	if len(args) != len(want) {
+		t.Fatalf("got %v, want %v", args, want)
+	}
+	for i, a := range args {
+		if a != want[i] {
+			t.Errorf("args[%d] = %q, want %q", i, a, want[i])
+		}
+	}
+}
+
+func TestGhPRArgs_WithSlug(t *testing.T) {
+	client := NewClientWithRepo(&mockExecutor{}, "owner/repo")
+	args := client.ghPRArgs("diff", "42")
+	want := []string{"pr", "diff", "-R", "owner/repo", "42"}
+	if len(args) != len(want) {
+		t.Fatalf("got %v, want %v", args, want)
+	}
+	for i, a := range args {
+		if a != want[i] {
+			t.Errorf("args[%d] = %q, want %q", i, a, want[i])
+		}
+	}
+}

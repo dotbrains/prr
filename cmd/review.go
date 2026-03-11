@@ -8,6 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"strconv"
+
 	"github.com/dotbrains/prr/internal/agent"
 	_ "github.com/dotbrains/prr/internal/agent/anthropic" // register provider
 	_ "github.com/dotbrains/prr/internal/agent/claudecli" // register provider
@@ -45,7 +47,13 @@ func runReview(cmd *cobra.Command, args []string) error {
 	if isLocalMode() {
 		return runLocalReview(cmd, ctx, cfg, outputDir, noPraise, minSeverity)
 	}
-	return runPRReview(cmd, ctx, cfg, args, outputDir, noPraise, minSeverity)
+
+	// Check if the argument is a PR URL
+	if len(args) > 0 && gh.IsPRURL(args[0]) {
+		return runURLReview(cmd, ctx, cfg, args[0], outputDir, noPraise, minSeverity)
+	}
+
+	return runPRReview(cmd, ctx, cfg, args, "", outputDir, noPraise, minSeverity)
 }
 
 // runLocalReview handles the --repo/--base local git review path.
@@ -134,13 +142,34 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 	return runSingleAgent(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
 }
 
+// runURLReview handles review via a GitHub PR URL.
+func runURLReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, prURL string, outputDir string, noPraise bool, minSeverity string) error {
+	owner, repo, prNumber, err := gh.ParsePRURL(prURL)
+	if err != nil {
+		return err
+	}
+	repoSlug := owner + "/" + repo
+
+	fmt.Fprintf(cmd.OutOrStdout(), "→ Remote: %s\n", repoSlug)
+
+	return runPRReview(cmd, ctx, cfg, nil, repoSlug, outputDir, noPraise, minSeverity, strconv.Itoa(prNumber))
+}
+
 // runPRReview handles the original GitHub PR review path.
-func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, args []string, outputDir string, noPraise bool, minSeverity string) error {
+// prNumberOverride is used when the PR number is already known (e.g. from URL parsing).
+func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, args []string, repoSlug string, outputDir string, noPraise bool, minSeverity string, prNumberOverride ...string) error {
 	executor := exec.NewRealExecutor()
-	ghClient := gh.NewClient(executor)
+	var ghClient *gh.Client
+	if repoSlug != "" {
+		ghClient = gh.NewClientWithRepo(executor, repoSlug)
+	} else {
+		ghClient = gh.NewClient(executor)
+	}
 
 	prArg := ""
-	if len(args) > 0 {
+	if len(prNumberOverride) > 0 && prNumberOverride[0] != "" {
+		prArg = prNumberOverride[0]
+	} else if len(args) > 0 {
 		prArg = args[0]
 	}
 

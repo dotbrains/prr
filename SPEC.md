@@ -95,10 +95,11 @@ Adding a new provider (e.g. Google Gemini, local Ollama) requires implementing t
 
 ## Commands
 
-### `prr [PR_NUMBER]`
+### `prr [PR_NUMBER]` / `prr <PR_URL>`
 
 Run an AI code review on a pull request (PR mode).
 
+- If a GitHub PR URL is provided (e.g. `https://github.com/owner/repo/pull/123`), the owner, repo, and PR number are parsed from the URL. All `gh` commands use `-R owner/repo` to operate remotely — no cloning or directory change needed.
 - If `PR_NUMBER` is omitted, auto-detects from the current branch via `gh pr status --json number`.
 - Fetches the PR diff and metadata via `gh pr diff` and `gh pr view`.
 - Sends the diff to the configured AI agent.
@@ -285,9 +286,10 @@ $ prr clean --days 7
 5. If base == head, exits with an error.
 
 **PR mode** (default) — the `prr` command shares the same resolution pattern as other dotbrains CLIs:
-1. If a positional argument is provided, use it as the PR number (validated as an integer).
-2. Otherwise, run `gh pr status --json number` and extract `currentBranch.number`.
-3. If no PR is found or `gh` fails, exit with an error.
+1. If the positional argument is a GitHub PR URL, parse owner/repo/number from it and use `gh -R owner/repo` for all operations.
+2. If the positional argument is a number, use it as the PR number.
+3. Otherwise, run `gh pr status --json number` and extract `currentBranch.number`.
+4. If no PR is found or `gh` fails, exit with an error.
 
 ## Output Format
 
