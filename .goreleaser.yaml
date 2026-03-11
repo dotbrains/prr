@@ -11,6 +11,7 @@ brews:
   - repository:
       owner: dotbrains
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     name: prr
     homepage: https://github.com/dotbrains/prr
     description: AI-powered PR code review CLI
