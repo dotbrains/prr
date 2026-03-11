@@ -97,13 +97,13 @@ func writeSummary(dir string, output *agent.ReviewOutput, opts WriteOptions) err
 	stats := output.Stats()
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# PR #%d\n\n", opts.PRNumber))
-	sb.WriteString(fmt.Sprintf("**Agent:** %s", opts.AgentName))
+	fmt.Fprintf(&sb, "# PR #%d\n\n", opts.PRNumber)
+	fmt.Fprintf(&sb, "**Agent:** %s", opts.AgentName)
 	if opts.Model != "" {
-		sb.WriteString(fmt.Sprintf(" (%s)", opts.Model))
+		fmt.Fprintf(&sb, " (%s)", opts.Model)
 	}
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("**Date:** %s\n", time.Now().Format("2006-01-02 15:04:05")))
+	fmt.Fprintf(&sb, "**Date:** %s\n", time.Now().Format("2006-01-02 15:04:05"))
 
 	sb.WriteString("\n## Overview\n\n")
 	sb.WriteString(output.Summary)
@@ -112,7 +112,7 @@ func writeSummary(dir string, output *agent.ReviewOutput, opts WriteOptions) err
 	sb.WriteString("\n## Stats\n\n")
 	for _, sev := range []string{"critical", "suggestion", "nit", "praise"} {
 		if count, ok := stats[sev]; ok && count > 0 {
-			sb.WriteString(fmt.Sprintf("- %d %s\n", count, sev))
+			fmt.Fprintf(&sb, "- %d %s\n", count, sev)
 		}
 	}
 
@@ -130,14 +130,14 @@ func writeFileComments(filesDir string, filePath string, comments []agent.Review
 	})
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# %s\n", filePath))
+	fmt.Fprintf(&sb, "# %s\n", filePath)
 
 	for i, c := range comments {
 		sb.WriteString("\n")
 		if c.StartLine == c.EndLine || c.EndLine == 0 {
-			sb.WriteString(fmt.Sprintf("## Line %d — %s\n", c.StartLine, c.Severity))
+			fmt.Fprintf(&sb, "## Line %d — %s\n", c.StartLine, c.Severity)
 		} else {
-			sb.WriteString(fmt.Sprintf("## Lines %d-%d — %s\n", c.StartLine, c.EndLine, c.Severity))
+			fmt.Fprintf(&sb, "## Lines %d-%d — %s\n", c.StartLine, c.EndLine, c.Severity)
 		}
 		sb.WriteString("\n")
 		sb.WriteString(c.Body)
