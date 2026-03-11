@@ -65,7 +65,7 @@ go install github.com/dotbrains/prr@latest
 
 ```sh
 brew tap dotbrains/tap
-brew install prr
+brew install --cask prr
 ```
 
 ### Via GitHub Release

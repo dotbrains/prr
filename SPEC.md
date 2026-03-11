@@ -618,7 +618,7 @@ go install github.com/dotbrains/prr@latest
 
 ```sh
 brew tap dotbrains/tap
-brew install prr
+brew install --cask prr
 ```
 
 ### Via GitHub Release
@@ -836,18 +836,22 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
 
-brews:
+homebrew_casks:
   - repository:
       owner: dotbrains
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     name: prr
     homepage: https://github.com/dotbrains/prr
     description: AI-powered PR code review CLI
     license: "MIT"
-    install: |
-      bin.install "prr"
-    test: |
-      system "#{bin}/prr", "--version"
+    binaries: [prr]
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/prr"]
+          end
 
 archives:
   - formats: [tar.gz]
