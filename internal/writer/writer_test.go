@@ -1,0 +1,230 @@
+package writer
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/dotbrains/prr/internal/agent"
+)
+
+func TestWrite_SingleAgent(t *testing.T) {
+	dir := t.TempDir()
+
+	output := &agent.ReviewOutput{
+		Summary: "Good PR with minor issues.",
+		Comments: []agent.ReviewComment{
+			{File: "main.go", StartLine: 10, EndLine: 10, Severity: "critical", Body: "Bug here."},
+			{File: "main.go", StartLine: 20, EndLine: 25, Severity: "suggestion", Body: "Refactor this."},
+			{File: "cmd/root.go", StartLine: 5, EndLine: 5, Severity: "nit", Body: "Naming."},
+		},
+	}
+
+	opts := WriteOptions{
+		BaseDir:    dir,
+		PRNumber:   42,
+		AgentName:  "claude",
+		Model:      "claude-sonnet-4-20250514",
+		MultiAgent: false,
+	}
+
+	reviewDir, err := Write(output, opts)
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	// Check summary.md exists
+	summaryPath := filepath.Join(reviewDir, "summary.md")
+	if _, err := os.Stat(summaryPath); os.IsNotExist(err) {
+		t.Error("summary.md not created")
+	}
+
+	summaryContent, _ := os.ReadFile(summaryPath)
+	if !strings.Contains(string(summaryContent), "PR #42") {
+		t.Error("summary.md missing PR number")
+	}
+	if !strings.Contains(string(summaryContent), "claude") {
+		t.Error("summary.md missing agent name")
+	}
+
+	// Check files directory exists
+	filesDir := filepath.Join(reviewDir, "files")
+	if _, err := os.Stat(filesDir); os.IsNotExist(err) {
+		t.Error("files/ directory not created")
+	}
+
+	// Check per-file comment files
+	mainComments := filepath.Join(filesDir, "main-go.md")
+	if _, err := os.Stat(mainComments); os.IsNotExist(err) {
+		t.Error("main-go.md not created")
+	}
+
+	mainContent, _ := os.ReadFile(mainComments)
+	if !strings.Contains(string(mainContent), "Line 10") {
+		t.Error("main-go.md missing line 10 comment")
+	}
+	if !strings.Contains(string(mainContent), "Lines 20-25") {
+		t.Error("main-go.md missing lines 20-25 comment")
+	}
+
+	rootComments := filepath.Join(filesDir, "cmd-root-go.md")
+	if _, err := os.Stat(rootComments); os.IsNotExist(err) {
+		t.Error("cmd-root-go.md not created")
+	}
+}
+
+func TestWrite_MultiAgent(t *testing.T) {
+	dir := t.TempDir()
+
+	outputs := map[string]*AgentOutput{
+		"claude": {
+			Output: &agent.ReviewOutput{
+				Summary:  "Claude review.",
+				Comments: []agent.ReviewComment{{File: "main.go", StartLine: 1, Severity: "nit", Body: "Style."}},
+			},
+			Model: "claude-sonnet-4-20250514",
+		},
+		"gpt": {
+			Output: &agent.ReviewOutput{
+				Summary:  "GPT review.",
+				Comments: []agent.ReviewComment{{File: "main.go", StartLine: 2, Severity: "suggestion", Body: "Better."}},
+			},
+			Model: "gpt-4o",
+		},
+	}
+
+	reviewDir, err := WriteMulti(outputs, dir, 100)
+	if err != nil {
+		t.Fatalf("WriteMulti failed: %v", err)
+	}
+
+	// Check both agent directories
+	for _, name := range []string{"claude", "gpt"} {
+		agentDir := filepath.Join(reviewDir, name)
+		if _, err := os.Stat(filepath.Join(agentDir, "summary.md")); os.IsNotExist(err) {
+			t.Errorf("%s/summary.md not created", name)
+		}
+		if _, err := os.Stat(filepath.Join(agentDir, "files", "main-go.md")); os.IsNotExist(err) {
+			t.Errorf("%s/files/main-go.md not created", name)
+		}
+	}
+}
+
+func TestPathToFilename(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"main.go", "main-go.md"},
+		{"src/auth/handler.go", "src-auth-handler-go.md"},
+		{"cmd/root.go", "cmd-root-go.md"},
+		{"README.md", "README-md.md"},
+	}
+
+	for _, tt := range tests {
+		got := pathToFilename(tt.input)
+		if got != tt.want {
+			t.Errorf("pathToFilename(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestListReviewDirs(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create some fake review dirs
+	os.MkdirAll(filepath.Join(dir, "pr-100-20250101-120000"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "pr-200-20250102-120000"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "not-a-review"), 0o755)
+	os.WriteFile(filepath.Join(dir, "somefile.txt"), []byte("not a dir"), 0o644)
+
+	entries, err := ListReviewDirs(dir)
+	if err != nil {
+		t.Fatalf("ListReviewDirs failed: %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Errorf("expected 2 review dirs, got %d", len(entries))
+	}
+}
+
+func TestListReviewDirs_Empty(t *testing.T) {
+	dir := t.TempDir()
+
+	entries, err := ListReviewDirs(dir)
+	if err != nil {
+		t.Fatalf("ListReviewDirs failed: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(entries))
+	}
+}
+
+func TestListReviewDirs_NonExistent(t *testing.T) {
+	entries, err := ListReviewDirs("/nonexistent/path")
+	if err != nil {
+		t.Fatalf("expected no error for nonexistent dir, got %v", err)
+	}
+	if entries != nil {
+		t.Errorf("expected nil entries, got %v", entries)
+	}
+}
+
+func TestCleanOlderThan(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create an old review dir
+	oldDir := filepath.Join(dir, "pr-100-20240101-120000")
+	os.MkdirAll(oldDir, 0o755)
+	// Set mtime to 90 days ago
+	oldTime := time.Now().Add(-90 * 24 * time.Hour)
+	os.Chtimes(oldDir, oldTime, oldTime)
+
+	// Create a new review dir
+	newDir := filepath.Join(dir, "pr-200-20250301-120000")
+	os.MkdirAll(newDir, 0o755)
+
+	removed, err := CleanOlderThan(dir, 30*24*time.Hour, false)
+	if err != nil {
+		t.Fatalf("CleanOlderThan failed: %v", err)
+	}
+
+	if len(removed) != 1 {
+		t.Errorf("expected 1 removed, got %d", len(removed))
+	}
+
+	// Old dir should be gone
+	if _, err := os.Stat(oldDir); !os.IsNotExist(err) {
+		t.Error("old dir should have been removed")
+	}
+
+	// New dir should still exist
+	if _, err := os.Stat(newDir); os.IsNotExist(err) {
+		t.Error("new dir should still exist")
+	}
+}
+
+func TestCleanOlderThan_DryRun(t *testing.T) {
+	dir := t.TempDir()
+
+	oldDir := filepath.Join(dir, "pr-100-20240101-120000")
+	os.MkdirAll(oldDir, 0o755)
+	oldTime := time.Now().Add(-90 * 24 * time.Hour)
+	os.Chtimes(oldDir, oldTime, oldTime)
+
+	removed, err := CleanOlderThan(dir, 30*24*time.Hour, true)
+	if err != nil {
+		t.Fatalf("CleanOlderThan failed: %v", err)
+	}
+
+	if len(removed) != 1 {
+		t.Errorf("expected 1 in dry run, got %d", len(removed))
+	}
+
+	// Dir should still exist (dry run)
+	if _, err := os.Stat(oldDir); os.IsNotExist(err) {
+		t.Error("dir should still exist in dry run")
+	}
+}

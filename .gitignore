@@ -1,0 +1,12 @@
+# Binary
+prr
+dist/
+
+# Coverage
+coverage.out
+
+# Review output
+reviews/
+
+# OS
+.DS_Store

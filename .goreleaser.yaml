@@ -1,0 +1,35 @@
+version: 2
+
+builds:
+  - binary: prr
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+brews:
+  - repository:
+      owner: dotbrains
+      name: homebrew-tap
+    name: prr
+    homepage: https://github.com/dotbrains/prr
+    description: AI-powered PR code review CLI
+    license: "MIT"
+    install: |
+      bin.install "prr"
+    test: |
+      system "#{bin}/prr", "--version"
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
