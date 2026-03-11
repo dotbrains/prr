@@ -149,7 +149,10 @@ func TestWrite_MultiAgent(t *testing.T) {
 		},
 	}
 
-	reviewDir, err := WriteMulti(outputs, dir, 100)
+	reviewDir, err := WriteMulti(outputs, WriteMultiOptions{
+		BaseDir:  dir,
+		PRNumber: 100,
+	})
 	if err != nil {
 		t.Fatalf("WriteMulti failed: %v", err)
 	}

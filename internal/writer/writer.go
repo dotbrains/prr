@@ -13,18 +13,26 @@ import (
 
 // WriteOptions controls output behavior.
 type WriteOptions struct {
-	BaseDir   string // base output directory (e.g. "reviews")
-	PRNumber  int
-	AgentName string
-	Model     string
-	MultiAgent bool // if true, nest under agent name subdirectory
+	BaseDir    string // base output directory (e.g. "reviews")
+	PRNumber   int    // 0 for local (non-PR) reviews
+	AgentName  string
+	Model      string
+	MultiAgent bool   // if true, nest under agent name subdirectory
+	BaseBranch string // for local reviews
+	HeadBranch string // for local reviews
 }
 
 // Write writes a ReviewOutput to markdown files on disk.
 // Returns the output directory path.
 func Write(output *agent.ReviewOutput, opts WriteOptions) (string, error) {
 	timestamp := time.Now().Format("20060102-150405")
-	reviewDir := filepath.Join(opts.BaseDir, fmt.Sprintf("pr-%d-%s", opts.PRNumber, timestamp))
+	var dirName string
+	if opts.PRNumber > 0 {
+		dirName = fmt.Sprintf("pr-%d-%s", opts.PRNumber, timestamp)
+	} else {
+		dirName = fmt.Sprintf("review-%s-vs-%s-%s", safeBranchName(opts.BaseBranch), safeBranchName(opts.HeadBranch), timestamp)
+	}
+	reviewDir := filepath.Join(opts.BaseDir, dirName)
 
 	if opts.MultiAgent {
 		reviewDir = filepath.Join(reviewDir, opts.AgentName)
@@ -51,11 +59,25 @@ func Write(output *agent.ReviewOutput, opts WriteOptions) (string, error) {
 	return reviewDir, nil
 }
 
+// WriteMultiOptions controls multi-agent output behavior.
+type WriteMultiOptions struct {
+	BaseDir    string
+	PRNumber   int
+	BaseBranch string
+	HeadBranch string
+}
+
 // WriteMulti writes multiple agent outputs to the same review directory.
 // Returns the top-level review directory path.
-func WriteMulti(outputs map[string]*agentOutput, baseDir string, prNumber int) (string, error) {
+func WriteMulti(outputs map[string]*agentOutput, opts WriteMultiOptions) (string, error) {
 	timestamp := time.Now().Format("20060102-150405")
-	reviewDir := filepath.Join(baseDir, fmt.Sprintf("pr-%d-%s", prNumber, timestamp))
+	var dirName string
+	if opts.PRNumber > 0 {
+		dirName = fmt.Sprintf("pr-%d-%s", opts.PRNumber, timestamp)
+	} else {
+		dirName = fmt.Sprintf("review-%s-vs-%s-%s", safeBranchName(opts.BaseBranch), safeBranchName(opts.HeadBranch), timestamp)
+	}
+	reviewDir := filepath.Join(opts.BaseDir, dirName)
 
 	for agentName, ao := range outputs {
 		agentDir := filepath.Join(reviewDir, agentName)
@@ -64,13 +86,15 @@ func WriteMulti(outputs map[string]*agentOutput, baseDir string, prNumber int) (
 			return "", fmt.Errorf("creating output directory for %s: %w", agentName, err)
 		}
 
-		opts := WriteOptions{
-			PRNumber:  prNumber,
-			AgentName: agentName,
-			Model:     ao.Model,
+		writeOpts := WriteOptions{
+			PRNumber:   opts.PRNumber,
+			AgentName:  agentName,
+			Model:      ao.Model,
+			BaseBranch: opts.BaseBranch,
+			HeadBranch: opts.HeadBranch,
 		}
 
-		if err := writeSummary(agentDir, ao.Output, opts); err != nil {
+		if err := writeSummary(agentDir, ao.Output, writeOpts); err != nil {
 			return "", err
 		}
 
@@ -97,7 +121,11 @@ func writeSummary(dir string, output *agent.ReviewOutput, opts WriteOptions) err
 	stats := output.Stats()
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "# PR #%d\n\n", opts.PRNumber)
+	if opts.PRNumber > 0 {
+		fmt.Fprintf(&sb, "# PR #%d\n\n", opts.PRNumber)
+	} else {
+		fmt.Fprintf(&sb, "# Review: %s → %s\n\n", opts.BaseBranch, opts.HeadBranch)
+	}
 	fmt.Fprintf(&sb, "**Agent:** %s", opts.AgentName)
 	if opts.Model != "" {
 		fmt.Fprintf(&sb, " (%s)", opts.Model)
@@ -157,6 +185,14 @@ func writeFileComments(filesDir string, filePath string, comments []agent.Review
 	return nil
 }
 
+// safeBranchName sanitizes a branch name for use in directory names.
+func safeBranchName(name string) string {
+	result := strings.ReplaceAll(name, "/", "-")
+	result = strings.ReplaceAll(result, "\\", "-")
+	result = strings.ReplaceAll(result, " ", "-")
+	return result
+}
+
 // pathToFilename converts a file path to a safe filename for the output.
 func pathToFilename(path string) string {
 	// Replace / and . with -
@@ -181,7 +217,7 @@ func ListReviewDirs(baseDir string) ([]ReviewEntry, error) {
 			continue
 		}
 		name := e.Name()
-		if !strings.HasPrefix(name, "pr-") {
+		if !strings.HasPrefix(name, "pr-") && !strings.HasPrefix(name, "review-") {
 			continue
 		}
 		info, err := e.Info()

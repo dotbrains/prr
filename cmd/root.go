@@ -10,6 +10,9 @@ var (
 	flagAgent     string
 	flagAll       bool
 	flagOutputDir string
+	flagRepo      string
+	flagBase      string
+	flagHead      string
 )
 
 func newRootCmd(version string) *cobra.Command {
@@ -31,6 +34,11 @@ func newRootCmd(version string) *cobra.Command {
 	root.PersistentFlags().StringVar(&flagAgent, "agent", "", "use a specific configured agent")
 	root.PersistentFlags().BoolVar(&flagAll, "all", false, "run review with all configured agents")
 	root.PersistentFlags().StringVar(&flagOutputDir, "output-dir", "", "override output directory")
+
+	// Local repo flags
+	root.PersistentFlags().StringVar(&flagRepo, "repo", "", "path to a local git repo (enables local mode)")
+	root.PersistentFlags().StringVar(&flagBase, "base", "", "base branch to diff against (enables local mode)")
+	root.PersistentFlags().StringVar(&flagHead, "head", "", "head branch (defaults to current branch)")
 
 	// Review-specific flags
 	root.Flags().Bool("no-praise", false, "skip positive/praise comments")

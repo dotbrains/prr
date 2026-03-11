@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -16,8 +17,14 @@ import (
 	"github.com/dotbrains/prr/internal/diff"
 	"github.com/dotbrains/prr/internal/exec"
 	"github.com/dotbrains/prr/internal/gh"
+	gitpkg "github.com/dotbrains/prr/internal/git"
 	"github.com/dotbrains/prr/internal/writer"
 )
+
+// isLocalMode returns true if --repo or --base was provided.
+func isLocalMode() bool {
+	return flagRepo != "" || flagBase != ""
+}
 
 func runReview(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
@@ -32,7 +39,103 @@ func runReview(cmd *cobra.Command, args []string) error {
 		outputDir = flagOutputDir
 	}
 
-	// Resolve PR number
+	noPraise, _ := cmd.Flags().GetBool("no-praise")
+	minSeverity, _ := cmd.Flags().GetString("min-severity")
+
+	if isLocalMode() {
+		return runLocalReview(cmd, ctx, cfg, outputDir, noPraise, minSeverity)
+	}
+	return runPRReview(cmd, ctx, cfg, args, outputDir, noPraise, minSeverity)
+}
+
+// runLocalReview handles the --repo/--base local git review path.
+func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, outputDir string, noPraise bool, minSeverity string) error {
+	executor := exec.NewRealExecutor()
+	gitClient := gitpkg.NewClient(executor)
+
+	// Resolve repo path
+	repoPath := flagRepo
+	if repoPath == "" {
+		repoPath, _ = os.Getwd()
+	}
+
+	if err := gitClient.IsRepo(ctx, repoPath); err != nil {
+		return err
+	}
+
+	// Resolve base branch
+	baseBranch := flagBase
+	if baseBranch == "" {
+		var err error
+		baseBranch, err = gitClient.GetDefaultBranch(ctx, repoPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Resolve head branch
+	headBranch := flagHead
+	if headBranch == "" {
+		var err error
+		headBranch, err = gitClient.GetCurrentBranch(ctx, repoPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	if baseBranch == headBranch {
+		return fmt.Errorf("base and head branches are the same (%s); nothing to review", baseBranch)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "→ Local review: %s → %s\n", baseBranch, headBranch)
+	fmt.Fprintf(cmd.OutOrStdout(), "→ repo:  %s\n", repoPath)
+
+	// Fetch diff
+	rawDiff, err := gitClient.GetDiff(ctx, repoPath, baseBranch, headBranch)
+	if err != nil {
+		return err
+	}
+
+	if rawDiff == "" {
+		fmt.Fprintln(cmd.OutOrStdout(), "No diff between branches. Nothing to review.")
+		return nil
+	}
+
+	// Parse and filter diff
+	files := diff.Parse(rawDiff)
+	files, filtered := diff.Filter(files, cfg.Review.IgnorePatterns)
+
+	fmt.Fprintf(cmd.OutOrStdout(), "→ files:  %d", len(files))
+	if filtered > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), " (%d filtered)", filtered)
+	}
+	fmt.Fprintln(cmd.OutOrStdout())
+
+	// Check diff size
+	totalLines := diff.LineCount(rawDiff)
+	if totalLines > cfg.Review.MaxDiffLines {
+		fmt.Fprintf(cmd.OutOrStdout(), "⚠ Diff is large (%d lines, limit %d). Review may be less thorough.\n",
+			totalLines, cfg.Review.MaxDiffLines)
+	}
+
+	// Build review input (no PR number, no existing comments)
+	input := &agent.ReviewInput{
+		PRNumber:   0,
+		PRTitle:    fmt.Sprintf("%s → %s", baseBranch, headBranch),
+		BaseBranch: baseBranch,
+		HeadBranch: headBranch,
+		Diff:       rawDiff,
+		Files:      files,
+	}
+
+	if flagAll {
+		return runAllAgents(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
+	}
+	return runSingleAgent(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
+}
+
+// runPRReview handles the original GitHub PR review path.
+func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, args []string, outputDir string, noPraise bool, minSeverity string) error {
 	executor := exec.NewRealExecutor()
 	ghClient := gh.NewClient(executor)
 
@@ -107,13 +210,9 @@ func runReview(cmd *cobra.Command, args []string) error {
 		ExistingReviewComments: existingReviewComments,
 	}
 
-	noPraise, _ := cmd.Flags().GetBool("no-praise")
-	minSeverity, _ := cmd.Flags().GetString("min-severity")
-
 	if flagAll {
 		return runAllAgents(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
 	}
-
 	return runSingleAgent(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
 }
 
@@ -151,6 +250,8 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 		AgentName:  agentName,
 		Model:      agentCfg.Model,
 		MultiAgent: false,
+		BaseBranch: input.BaseBranch,
+		HeadBranch: input.HeadBranch,
 	}
 
 	reviewDir, err := writer.Write(output, opts)
@@ -229,7 +330,12 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 		return fmt.Errorf("all agents failed")
 	}
 
-	reviewDir, err := writer.WriteMulti(outputs, outputDir, input.PRNumber)
+	reviewDir, err := writer.WriteMulti(outputs, writer.WriteMultiOptions{
+		BaseDir:    outputDir,
+		PRNumber:   input.PRNumber,
+		BaseBranch: input.BaseBranch,
+		HeadBranch: input.HeadBranch,
+	})
 	if err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}

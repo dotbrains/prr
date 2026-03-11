@@ -68,11 +68,14 @@ Rules for the JSON response:
 
 // BuildUserPrompt constructs the user message with PR context and diff.
 func BuildUserPrompt(input *ReviewInput) string {
-	prompt := fmt.Sprintf(`Review this pull request:
-
-PR #%d: %s
-Base: %s → Head: %s
-`, input.PRNumber, input.PRTitle, input.BaseBranch, input.HeadBranch)
+	var prompt string
+	if input.PRNumber > 0 {
+		prompt = fmt.Sprintf("Review this pull request:\n\nPR #%d: %s\nBase: %s → Head: %s\n",
+			input.PRNumber, input.PRTitle, input.BaseBranch, input.HeadBranch)
+	} else {
+		prompt = fmt.Sprintf("Review these code changes:\n\nBranch comparison: %s → %s\n",
+			input.BaseBranch, input.HeadBranch)
+	}
 
 	if input.PRBody != "" {
 		prompt += fmt.Sprintf("\nPR Description:\n%s\n", input.PRBody)
