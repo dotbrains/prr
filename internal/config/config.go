@@ -49,7 +49,7 @@ func DefaultConfig() *Config {
 		Agents: map[string]AgentConfig{
 			"claude-cli": {
 				Provider: "claude-cli",
-				Model:    "sonnet",
+				Model:    "opus",
 			},
 			"codex-cli": {
 				Provider: "codex-cli",
@@ -57,7 +57,7 @@ func DefaultConfig() *Config {
 			},
 			"claude-api": {
 				Provider:  "anthropic",
-				Model:     "claude-sonnet-4-20250514",
+				Model:     "claude-opus-4-20250514",
 				APIKeyEnv: "ANTHROPIC_API_KEY",
 				MaxTokens: 8192,
 			},

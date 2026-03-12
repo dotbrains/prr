@@ -148,3 +148,49 @@ func TestBuildSystemPrompt_ContainsExistingCommentsInstructions(t *testing.T) {
 		t.Error("system prompt should instruct not to repeat existing feedback")
 	}
 }
+
+func TestBuildSystemPrompt_HumanLikeWritingGuidance(t *testing.T) {
+	prompt := BuildSystemPrompt()
+
+	// Must contain the core human-writing mandate
+	if !strings.Contains(prompt, "indistinguishable from a real human") {
+		t.Error("system prompt should contain the human-indistinguishable mandate")
+	}
+
+	// Must have banned phrases section
+	if !strings.Contains(prompt, "BANNED PHRASES") {
+		t.Error("system prompt should contain BANNED PHRASES section")
+	}
+
+	// Must ban common AI tells
+	bannedPhrases := []string{
+		"I notice that",
+		"It appears that",
+		"Consider...",
+		"It would be beneficial",
+		"It's worth noting",
+	}
+	for _, phrase := range bannedPhrases {
+		if !strings.Contains(prompt, phrase) {
+			t.Errorf("system prompt should ban the phrase %q", phrase)
+		}
+	}
+
+	// Must have natural variability guidance
+	if !strings.Contains(prompt, "NATURAL VARIABILITY") {
+		t.Error("system prompt should contain NATURAL VARIABILITY section")
+	}
+
+	// Must have good and bad examples
+	if !strings.Contains(prompt, "EXAMPLES OF GOOD COMMENTS") {
+		t.Error("system prompt should contain EXAMPLES OF GOOD COMMENTS")
+	}
+	if !strings.Contains(prompt, "EXAMPLES OF BAD COMMENTS") {
+		t.Error("system prompt should contain EXAMPLES OF BAD COMMENTS")
+	}
+
+	// Must prohibit compliment sandwich pattern
+	if !strings.Contains(prompt, "compliment sandwich") {
+		t.Error("system prompt should ban the compliment sandwich pattern")
+	}
+}

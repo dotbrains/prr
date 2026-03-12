@@ -27,7 +27,7 @@ func init() {
 func New(name string, cfg config.AgentConfig, executor exec.CommandExecutor) (agent.Agent, error) {
 	model := cfg.Model
 	if model == "" {
-		model = "sonnet"
+		model = "opus"
 	}
 	return &ClaudeCLI{
 		name:  name,

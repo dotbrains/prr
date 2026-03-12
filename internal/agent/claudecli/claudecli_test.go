@@ -115,7 +115,7 @@ func TestClaudeCLI_DefaultModel(t *testing.T) {
 	a, _ := New("test", config.AgentConfig{Model: ""}, mock)
 
 	cli := a.(*ClaudeCLI)
-	if cli.model != "sonnet" {
-		t.Errorf("expected default model 'sonnet', got %q", cli.model)
+	if cli.model != "opus" {
+		t.Errorf("expected default model 'opus', got %q", cli.model)
 	}
 }

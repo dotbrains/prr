@@ -1,5 +1,7 @@
 # prr — AI-Powered PR Code Review CLI
 
+![prr](./assets/og-image.svg)
+
 [![CI](https://github.com/dotbrains/prr/actions/workflows/ci.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/ci.yml)
 [![Release](https://github.com/dotbrains/prr/actions/workflows/release.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -35,7 +37,7 @@ default_agent: claude-cli
 agents:
   claude-cli:
     provider: claude-cli
-    model: sonnet
+    model: opus
 
   codex-cli:
     provider: codex-cli
@@ -43,7 +45,7 @@ agents:
 
   claude-api:
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-opus-4-20250514
     api_key_env: ANTHROPIC_API_KEY
     max_tokens: 8192
 
@@ -145,7 +147,7 @@ $ prr --base main
 → Local review: main → feature/auth
 → repo:  /Users/dev/myproject
 → files:  8 (2 filtered)
-→ agent:  claude (sonnet)
+→ agent:  claude (opus)
 → Reviewing...
 
 ✓ Review complete.
@@ -156,7 +158,7 @@ $ prr --base main
 ```
 $ prr 17509
 → PR #17509: Fix user authentication race condition
-→ agent:  claude (claude-sonnet-4-20250514)
+→ agent:  claude (claude-opus-4-20250514)
 → files:  12 (3 filtered)
 → Reviewing...
 
@@ -211,9 +213,9 @@ List all configured agents and their status:
 
 ```
 $ prr agents
-  claude-cli   claude-cli   sonnet                         -                    ✓ (cli) (default)
+  claude-cli   claude-cli   opus                           -                    ✓ (cli) (default)
   codex-cli    codex-cli    codex                          -                    ✓ (cli)
-  claude-api   anthropic    claude-sonnet-4-20250514       ANTHROPIC_API_KEY    ✓
+  claude-api   anthropic    claude-opus-4-20250514         ANTHROPIC_API_KEY    ✓
   gpt-api      openai       gpt-4o                         OPENAI_API_KEY       ✗ (not set)
 
 Default: claude-cli
@@ -344,7 +346,7 @@ PR mode:
 ```markdown
 # PR #17509 — Fix user authentication race condition
 
-**Agent:** claude (claude-sonnet-4-20250514)
+**Agent:** claude (claude-opus-4-20250514)
 **Date:** 2025-03-11 14:30:00
 ```
 
@@ -352,7 +354,7 @@ Local mode:
 ```markdown
 # Review: main → feature/auth
 
-**Agent:** claude (sonnet)
+**Agent:** claude (opus)
 **Date:** 2025-03-11 14:30:00
 ```
 
@@ -877,7 +879,7 @@ changelog:
 ```
 $ prr
 → PR #17509: Fix user authentication race condition
-→ agent:  claude (claude-sonnet-4-20250514)
+→ agent:  claude (claude-opus-4-20250514)
 → files:  12 (3 filtered)
 → Reviewing...
 
@@ -922,7 +924,7 @@ $ prr --base main
 → Local review: main → feature/auth
 → repo:  .
 → files:  8 (2 filtered)
-→ agent:  claude (sonnet)
+→ agent:  claude (opus)
 → Reviewing...
 
 ✓ Review complete.
@@ -980,7 +982,7 @@ Edit the file to add your API keys and customize agents.
 
 $ export ANTHROPIC_API_KEY=sk-...
 $ prr agents
-  claude  anthropic  claude-sonnet-4-20250514  ANTHROPIC_API_KEY ✓
+  claude  anthropic  claude-opus-4-20250514  ANTHROPIC_API_KEY ✓
 
 Default: claude
 ```

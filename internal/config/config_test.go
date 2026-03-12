@@ -96,8 +96,8 @@ func TestAgentConfig_Fields(t *testing.T) {
 	if cli.Provider != "claude-cli" {
 		t.Errorf("expected provider claude-cli, got %q", cli.Provider)
 	}
-	if cli.Model != "sonnet" {
-		t.Errorf("expected model sonnet, got %q", cli.Model)
+	if cli.Model != "opus" {
+		t.Errorf("expected model opus, got %q", cli.Model)
 	}
 
 	// API provider
