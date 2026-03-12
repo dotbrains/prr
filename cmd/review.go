@@ -20,6 +20,7 @@ import (
 	"github.com/dotbrains/prr/internal/exec"
 	"github.com/dotbrains/prr/internal/gh"
 	gitpkg "github.com/dotbrains/prr/internal/git"
+	"github.com/dotbrains/prr/internal/spinner"
 	"github.com/dotbrains/prr/internal/writer"
 )
 
@@ -262,9 +263,11 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "→ agent:  %s (%s)\n", a.Name(), agentCfg.Model)
-	fmt.Fprintln(cmd.OutOrStdout(), "→ Reviewing...")
 
+	sp := spinner.New(cmd.OutOrStdout(), "→ Reviewing...")
+	sp.Start()
 	output, err := a.Review(ctx, input)
+	sp.Stop()
 	if err != nil {
 		return fmt.Errorf("review failed: %w", err)
 	}
@@ -311,7 +314,9 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 		names += a.Name()
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "→ agents: %s\n", names)
-	fmt.Fprintf(cmd.OutOrStdout(), "→ Reviewing with %d agents...\n", len(agents))
+
+	sp := spinner.New(cmd.OutOrStdout(), fmt.Sprintf("→ Reviewing with %d agents...", len(agents)))
+	sp.Start()
 
 	// Run agents in parallel
 	type result struct {
@@ -340,6 +345,7 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 	}
 
 	wg.Wait()
+	sp.Stop()
 
 	// Check for errors
 	outputs := make(map[string]*writer.AgentOutput)

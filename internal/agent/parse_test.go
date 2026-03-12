@@ -43,6 +43,28 @@ func TestParseReviewJSON_WithWhitespace(t *testing.T) {
 	}
 }
 
+func TestParseReviewJSON_ProseBeforeJSON(t *testing.T) {
+	input := "Based on the diff analysis, here's my review:\n\n{\"summary\":\"Looks good\",\"comments\":[]}"
+	output, err := ParseReviewJSON(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if output.Summary != "Looks good" {
+		t.Errorf("expected summary 'Looks good', got %q", output.Summary)
+	}
+}
+
+func TestParseReviewJSON_ProseBeforeCodeFence(t *testing.T) {
+	input := "Here is the review:\n\n```json\n{\"summary\":\"test\",\"comments\":[]}\n```\n\nLet me know if you need more."
+	output, err := ParseReviewJSON(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if output.Summary != "test" {
+		t.Errorf("expected summary 'test', got %q", output.Summary)
+	}
+}
+
 func TestParseReviewJSON_InvalidJSON(t *testing.T) {
 	_, err := ParseReviewJSON("not json at all")
 	if err == nil {
