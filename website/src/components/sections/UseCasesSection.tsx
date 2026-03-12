@@ -51,9 +51,9 @@ export function UseCasesSection() {
           {useCases.map((useCase, index) => (
             <div
               key={index}
-              className="bg-dark-gray/50 border border-prr-purple/20 rounded-xl p-5 sm:p-6 hover:border-prr-indigo/40 transition-all"
+              className="bg-dark-gray/50 border border-prr-amber/20 rounded-xl p-5 sm:p-6 hover:border-prr-orange/40 transition-all"
             >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-prr-purple to-prr-indigo rounded-lg flex items-center justify-center text-white mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-prr-amber to-prr-orange rounded-lg flex items-center justify-center text-white mb-3 sm:mb-4">
                 {useCase.icon}
               </div>
               <h3 className="text-lg sm:text-xl font-semibold text-cream mb-2">{useCase.title}</h3>

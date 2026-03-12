@@ -83,15 +83,15 @@ review:
             See prr in action — PR reviews, local diffs, and configuration
           </p>
         </div>
-        <div className="bg-dark-slate border border-prr-purple/30 rounded-xl overflow-hidden">
-          <div className="flex border-b border-prr-purple/30 overflow-x-auto">
+        <div className="bg-dark-slate border border-prr-amber/30 rounded-xl overflow-hidden">
+          <div className="flex border-b border-prr-amber/30 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${
                   activeTab === tab.key
-                    ? 'bg-dark-gray/50 text-prr-purple border-b-2 border-prr-purple'
+                    ? 'bg-dark-gray/50 text-prr-amber border-b-2 border-prr-amber'
                     : 'text-cream/70 hover:text-cream hover:bg-dark-gray/30'
                 }`}
               >

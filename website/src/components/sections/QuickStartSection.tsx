@@ -30,7 +30,7 @@ tar -xzf /tmp/prr_darwin_arm64.tar.gz -C /usr/local/bin`;
           </p>
         </div>
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div className="bg-dark-gray/50 rounded-xl p-6 sm:p-8 border border-prr-purple/20 min-w-0">
+          <div className="bg-dark-gray/50 rounded-xl p-6 sm:p-8 border border-prr-amber/20 min-w-0">
             <h3 className="text-xl sm:text-2xl font-bold text-cream mb-4 sm:mb-6">1. Install</h3>
             <div className="flex gap-2 sm:gap-3 mb-6">
               {[
@@ -43,8 +43,8 @@ tar -xzf /tmp/prr_darwin_arm64.tar.gz -C /usr/local/bin`;
                   onClick={() => setInstallMethod(method.key)}
                   className={`flex-1 px-3 sm:px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                     installMethod === method.key
-                      ? 'bg-gradient-to-r from-prr-purple to-prr-indigo text-white shadow-lg shadow-prr-purple/30'
-                      : 'bg-dark-slate text-slate-gray hover:text-cream hover:border-prr-purple/50 border border-prr-purple/30'
+                      ? 'bg-gradient-to-r from-prr-amber to-prr-orange text-white shadow-lg shadow-prr-amber/30'
+                      : 'bg-dark-slate text-slate-gray hover:text-cream hover:border-prr-amber/50 border border-prr-amber/30'
                   }`}
                 >
                   {method.label}
@@ -56,7 +56,7 @@ tar -xzf /tmp/prr_darwin_arm64.tar.gz -C /usr/local/bin`;
               language="bash"
             />
           </div>
-          <div className="bg-dark-gray/50 rounded-xl p-6 sm:p-8 border border-prr-indigo/20 min-w-0">
+          <div className="bg-dark-gray/50 rounded-xl p-6 sm:p-8 border border-prr-orange/20 min-w-0">
             <h3 className="text-xl sm:text-2xl font-bold text-cream mb-4 sm:mb-6">2. Review</h3>
             <CodeBlock
               code={`# Review the current branch's PR
@@ -72,9 +72,9 @@ prr 17509 --agent gpt
 prr --base main`}
               language="bash"
             />
-            <div className="mt-6 bg-prr-purple/10 border border-prr-purple/30 rounded-lg p-4 sm:p-5">
+            <div className="mt-6 bg-prr-amber/10 border border-prr-amber/30 rounded-lg p-4 sm:p-5">
               <p className="text-cream text-sm leading-relaxed">
-                <span className="text-prr-purple font-semibold">Tip:</span> Run <code className="bg-dark-slate/80 px-2 py-1 rounded text-prr-violet font-mono text-xs">prr config init</code> to scaffold a config file, then set your API key with <code className="bg-dark-slate/80 px-2 py-1 rounded text-prr-violet font-mono text-xs">export ANTHROPIC_API_KEY=sk-...</code>
+                <span className="text-prr-amber font-semibold">Tip:</span> Run <code className="bg-dark-slate/80 px-2 py-1 rounded text-prr-gold font-mono text-xs">prr config init</code> to scaffold a config file, then set your API key with <code className="bg-dark-slate/80 px-2 py-1 rounded text-prr-gold font-mono text-xs">export ANTHROPIC_API_KEY=sk-...</code>
               </p>
             </div>
           </div>

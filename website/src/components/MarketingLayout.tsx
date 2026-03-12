@@ -18,7 +18,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
   };
 
   return (
-    <nav className={`fixed left-0 right-0 top-0 z-50 w-full px-4 sm:px-6 py-4 backdrop-blur-xl transition-colors ${transparent ? 'bg-dark-slate/80' : 'bg-dark-slate border-b border-prr-purple/30'}`}>
+    <nav className={`fixed left-0 right-0 top-0 z-50 w-full px-4 sm:px-6 py-4 backdrop-blur-xl transition-colors ${transparent ? 'bg-dark-slate/80' : 'bg-dark-slate border-b border-prr-amber/30'}`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <a href="/" className="hover:opacity-80 transition-opacity flex items-center gap-2 sm:gap-3">
           <Image src="/favicon.svg" alt="prr" width={32} height={32} className="w-7 h-7 sm:w-8 sm:h-8" />
@@ -53,7 +53,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
               href="https://github.com/dotbrains/prr"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-dark-gray hover:bg-dark-slate border border-prr-purple text-cream rounded-lg transition-colors text-sm font-medium"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-dark-gray hover:bg-dark-slate border border-prr-amber text-cream rounded-lg transition-colors text-sm font-medium"
             >
               <Github className="w-4 h-4" />
               <span>Star</span>
@@ -61,7 +61,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
             <a
               href="/#quick-start"
               onClick={(e) => handleSmoothScroll(e, '#quick-start')}
-              className="bg-gradient-to-r from-prr-purple to-prr-indigo hover:from-prr-indigo hover:to-prr-violet text-white px-6 py-2 rounded-lg shadow-lg shadow-prr-purple/30 text-sm font-semibold transition-all"
+              className="bg-gradient-to-r from-prr-amber to-prr-orange hover:from-prr-orange hover:to-prr-gold text-white px-6 py-2 rounded-lg shadow-lg shadow-prr-amber/30 text-sm font-semibold transition-all"
             >
               Get Started
             </a>
@@ -71,7 +71,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 text-cream hover:text-prr-purple transition-colors"
+          className="lg:hidden p-2 text-cream hover:text-prr-amber transition-colors"
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -80,7 +80,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed top-[72px] left-0 right-0 bg-dark-slate border-b border-prr-purple/30 backdrop-blur-xl shadow-xl z-40">
+        <div className="lg:hidden fixed top-[72px] left-0 right-0 bg-dark-slate border-b border-prr-amber/30 backdrop-blur-xl shadow-xl z-40">
           <div className="px-4 py-6 space-y-4">
             <a
               href="/#features"
@@ -103,12 +103,12 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
             >
               Use Cases
             </a>
-            <div className="pt-4 space-y-3 border-t border-prr-purple/20">
+            <div className="pt-4 space-y-3 border-t border-prr-amber/20">
               <a
                 href="https://github.com/dotbrains/prr"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-dark-gray hover:bg-dark-slate border border-prr-purple text-cream rounded-lg transition-colors text-sm font-medium w-full"
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-dark-gray hover:bg-dark-slate border border-prr-amber text-cream rounded-lg transition-colors text-sm font-medium w-full"
               >
                 <Github className="w-4 h-4" />
                 <span>Star on GitHub</span>
@@ -116,7 +116,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
               <a
                 href="/#quick-start"
                 onClick={(e) => handleSmoothScroll(e, '#quick-start')}
-                className="flex items-center justify-center bg-gradient-to-r from-prr-purple to-prr-indigo hover:from-prr-indigo hover:to-prr-violet text-white px-6 py-3 rounded-lg shadow-lg shadow-prr-purple/30 text-sm font-semibold transition-all w-full"
+                className="flex items-center justify-center bg-gradient-to-r from-prr-amber to-prr-orange hover:from-prr-orange hover:to-prr-gold text-white px-6 py-3 rounded-lg shadow-lg shadow-prr-amber/30 text-sm font-semibold transition-all w-full"
               >
                 Get Started
               </a>
@@ -135,7 +135,7 @@ export function MarketingFooter() {
   };
 
   return (
-    <footer className="bg-dark-slate border-t border-prr-purple/30 py-12 sm:py-16">
+    <footer className="bg-dark-slate border-t border-prr-amber/30 py-12 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 mb-12">
           <div>
@@ -240,7 +240,7 @@ export function MarketingFooter() {
             </ul>
           </div>
         </div>
-        <div className="pt-8 border-t border-prr-purple/30 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="pt-8 border-t border-prr-amber/30 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-cream/60 text-sm">
             © {new Date().getFullYear()} prr. All rights reserved.
           </p>

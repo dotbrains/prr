@@ -25,7 +25,7 @@ export function CodeBlock({ code, language = 'bash', showLineNumbers = false, cl
       <div className="absolute right-3 top-3 z-10">
         <button
           onClick={handleCopy}
-          className="px-3 py-1.5 text-xs font-medium bg-dark-gray/80 hover:bg-dark-slate/80 text-slate-gray hover:text-cream rounded border border-prr-purple transition-all opacity-0 group-hover:opacity-100"
+          className="px-3 py-1.5 text-xs font-medium bg-dark-gray/80 hover:bg-dark-slate/80 text-slate-gray hover:text-cream rounded border border-prr-amber transition-all opacity-0 group-hover:opacity-100"
           aria-label="Copy code"
         >
           {copied ? (
@@ -45,9 +45,9 @@ export function CodeBlock({ code, language = 'bash', showLineNumbers = false, cl
           )}
         </button>
       </div>
-      <div className="bg-dark-slate border border-prr-purple/30 rounded-lg overflow-hidden">
+      <div className="bg-dark-slate border border-prr-amber/30 rounded-lg overflow-hidden">
         {language && (
-          <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-dark-gray/50 border-b border-prr-purple/30">
+          <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-dark-gray/50 border-b border-prr-amber/30">
             <span className="text-xs font-mono text-slate-gray uppercase tracking-wide">{language}</span>
           </div>
         )}

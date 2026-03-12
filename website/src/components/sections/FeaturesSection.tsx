@@ -51,9 +51,9 @@ export function FeaturesSection() {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="group bg-dark-gray/50 border border-prr-purple/20 hover:border-prr-indigo/40 rounded-xl p-5 sm:p-6 transition-all hover:shadow-lg hover:shadow-prr-purple/10"
+              className="group bg-dark-gray/50 border border-prr-amber/20 hover:border-prr-orange/40 rounded-xl p-5 sm:p-6 transition-all hover:shadow-lg hover:shadow-prr-amber/10"
             >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-prr-purple to-prr-indigo rounded-lg flex items-center justify-center text-white mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-prr-amber to-prr-orange rounded-lg flex items-center justify-center text-white mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
                 {feature.icon}
               </div>
               <h3 className="text-lg sm:text-xl font-semibold text-cream mb-2">{feature.title}</h3>

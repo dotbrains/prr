@@ -7,9 +7,9 @@ export default {
       colors: {
         cream: '#fefdfb',
         'dark-slate': '#1a1d29',
-        'prr-purple': '#8b5cf6',
-        'prr-indigo': '#6366f1',
-        'prr-violet': '#a78bfa',
+        'prr-amber': '#f59e0b',
+        'prr-orange': '#d97706',
+        'prr-gold': '#fbbf24',
         'dark-gray': '#2d3748',
         'slate-gray': '#475569',
       },

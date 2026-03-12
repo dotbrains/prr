@@ -13,16 +13,16 @@
   }
 
   ::selection {
-    @apply bg-prr-purple text-white;
+    @apply bg-prr-amber text-white;
   }
 
   ::-moz-selection {
-    @apply bg-prr-purple text-white;
+    @apply bg-prr-amber text-white;
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-prr-purple via-prr-indigo to-prr-violet;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-prr-amber via-prr-orange to-prr-gold;
   }
 }
