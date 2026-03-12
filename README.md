@@ -49,7 +49,7 @@ prr --repo /path/to/repo --base main --head feature-branch
 1. Resolves the PR number (from an argument, URL, or auto-detects from the current branch via `gh`).
 2. Fetches the PR diff and metadata using the GitHub CLI.
 3. Sends the diff to an AI agent (Claude by default).
-4. Writes structured review comments to `reviews/pr-<number>-<timestamp>/`.
+4. Writes structured review comments to `~/.local/share/prr/reviews/pr-<number>-<timestamp>/`.
 
 **URL mode** (pass a PR URL):
 1. Parses the GitHub PR URL to extract owner, repo, and PR number.
@@ -59,7 +59,7 @@ prr --repo /path/to/repo --base main --head feature-branch
 **Local mode** (`--repo` or `--base`):
 1. Diffs two branches in any local git repo (no GitHub PR needed).
 2. Sends the diff to an AI agent.
-3. Writes review comments to `reviews/review-<base>-vs-<head>-<timestamp>/`.
+3. Writes review comments to `~/.local/share/prr/reviews/review-<base>-vs-<head>-<timestamp>/`.
 
 Output is organized as one markdown file per reviewed source file, designed for direct copy-paste into GitHub's PR review interface.
 
@@ -125,7 +125,7 @@ Config lives at `~/.config/prr/config.yaml`. See [SPEC.md](SPEC.md) for the full
 
 PR reviews:
 ```
-reviews/
+~/.local/share/prr/reviews/
   pr-17509-20250311-143000/
     summary.md                        # Overall review
     files/
@@ -135,7 +135,7 @@ reviews/
 
 Local branch reviews:
 ```
-reviews/
+~/.local/share/prr/reviews/
   review-main-vs-feature-auth-20250311-143000/
     summary.md
     files/

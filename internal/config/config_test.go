@@ -23,8 +23,9 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Review.MaxDiffLines != 10000 {
 		t.Errorf("expected max_diff_lines 10000, got %d", cfg.Review.MaxDiffLines)
 	}
-	if cfg.Output.Dir != "reviews" {
-		t.Errorf("expected output dir reviews, got %q", cfg.Output.Dir)
+	expectedDir := filepath.Join(DefaultDataDir(), "reviews")
+	if cfg.Output.Dir != expectedDir {
+		t.Errorf("expected output dir %q, got %q", expectedDir, cfg.Output.Dir)
 	}
 }
 

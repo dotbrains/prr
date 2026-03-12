@@ -42,6 +42,19 @@ var CLIProviders = map[string]bool{
 	"codex-cli":  true,
 }
 
+// DefaultDataDir returns the default data directory for prr output.
+// Respects $XDG_DATA_HOME if set, otherwise falls back to ~/.local/share/prr.
+func DefaultDataDir() string {
+	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+		return filepath.Join(xdg, "prr")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(".", "reviews") // fallback
+	}
+	return filepath.Join(home, ".local", "share", "prr")
+}
+
 // DefaultConfig returns the built-in default configuration.
 func DefaultConfig() *Config {
 	return &Config{
@@ -89,7 +102,7 @@ func DefaultConfig() *Config {
 			},
 		},
 		Output: OutputConfig{
-			Dir: "reviews",
+			Dir: filepath.Join(DefaultDataDir(), "reviews"),
 		},
 	}
 }

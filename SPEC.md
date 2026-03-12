@@ -74,7 +74,7 @@ review:
     - praise
 
 output:
-  dir: reviews
+  dir: ~/.local/share/prr/reviews
 ```
 
 ### `prr config init`
@@ -105,7 +105,7 @@ Run an AI code review on a pull request (PR mode).
 - If `PR_NUMBER` is omitted, auto-detects from the current branch via `gh pr status --json number`.
 - Fetches the PR diff and metadata via `gh pr diff` and `gh pr view`.
 - Sends the diff to the configured AI agent.
-- Writes structured review output to `reviews/pr-<number>-<timestamp>/`.
+- Writes structured review output to `~/.local/share/prr/reviews/pr-<number>-<timestamp>/`.
 
 Steps:
 1. Resolves PR number (explicit arg or auto-detect from current branch).
@@ -116,7 +116,7 @@ Steps:
 6. Validates diff size against `max_diff_lines` (splits into batches if exceeded).
 7. Sends diff + metadata + existing comments to the AI agent with the review system prompt.
 8. Parses the structured response into review comments.
-9. Writes output to `reviews/pr-<number>-<timestamp>/`.
+9. Writes output to `~/.local/share/prr/reviews/pr-<number>-<timestamp>/`.
 10. Prints a summary to stdout.
 
 ### `prr --base <branch>` / `prr --repo <path> --base <branch>`
@@ -139,7 +139,7 @@ Steps:
 7. Validates diff size against `max_diff_lines`.
 8. Sends diff + branch metadata to the AI agent (no existing comments — local mode has no PR context).
 9. Parses the structured response into review comments.
-10. Writes output to `reviews/review-<base>-vs-<head>-<timestamp>/`.
+10. Writes output to `~/.local/share/prr/reviews/review-<base>-vs-<head>-<timestamp>/`.
 11. Prints a summary to stdout.
 
 ```
@@ -152,7 +152,7 @@ $ prr --base main
 
 ✓ Review complete.
 → 1 critical, 3 suggestions, 2 nits
-→ Output: reviews/review-main-vs-feature-auth-20250311-143000/
+→ Output: ~/.local/share/prr/reviews/review-main-vs-feature-auth-20250311-143000/
 ```
 
 ```
@@ -164,7 +164,7 @@ $ prr 17509
 
 ✓ Review complete.
 → 2 critical, 5 suggestions, 3 nits, 1 praise
-→ Output: reviews/pr-17509-20250311-143000/
+→ Output: ~/.local/share/prr/reviews/pr-17509-20250311-143000/
 
 Files:
   summary.md
@@ -197,14 +197,14 @@ $ prr 17509 --all
 → Reviewing with 2 agents...
 
 ✓ Review complete.
-→ Output: reviews/pr-17509-20250311-143000/
+→ Output: ~/.local/share/prr/reviews/pr-17509-20250311-143000/
 
   claude/
-    summary.md
-    files/...
+      summary.md
+      files/...
   gpt/
-    summary.md
-    files/...
+      summary.md
+      files/...
 ```
 
 ### `prr agents`
@@ -225,7 +225,7 @@ CLI providers show `✓ (cli)` — they use local CLI binaries and don't need AP
 
 ### `prr history`
 
-List past reviews in the `reviews/` directory:
+List past reviews in the output directory (`~/.local/share/prr/reviews/` by default):
 
 ```
 $ prr history
@@ -250,7 +250,7 @@ $ prr clean --days 7
 |---|---|
 | `--agent` | Use a specific configured agent (default: from config) |
 | `--all` | Run review with all configured agents in parallel |
-| `--output-dir` | Override the output directory (default: `reviews/`) |
+| `--output-dir` | Override the output directory (default: `~/.local/share/prr/reviews/`) |
 | `--repo` | Path to a local git repo (enables local mode) |
 | `--base` | Base branch to diff against (enables local mode) |
 | `--head` | Head branch (defaults to current branch) |
@@ -300,7 +300,7 @@ $ prr clean --days 7
 PR mode — single agent (default):
 
 ```
-reviews/
+~/.local/share/prr/reviews/
   pr-17509-20250311-143000/
     summary.md
     files/
@@ -312,7 +312,7 @@ reviews/
 Local mode — single agent:
 
 ```
-reviews/
+~/.local/share/prr/reviews/
   review-main-vs-feature-auth-20250311-143000/
     summary.md
     files/
@@ -324,7 +324,7 @@ Branch names with slashes are sanitized (`feature/auth` → `feature-auth`).
 Multi-agent (`--all`):
 
 ```
-reviews/
+~/.local/share/prr/reviews/
   pr-17509-20250311-143000/
     claude/
       summary.md
@@ -658,7 +658,7 @@ flowchart LR
     Registry --> ClaudeAPI[Anthropic API<br>Claude]
     Registry --> GPTAPI[OpenAI API<br>GPT]
     CLI --> Writer[Output Writer]
-    Writer --> Reviews[reviews/<br>markdown files]
+    Writer --> Reviews[~/.local/share/prr/reviews/<br>markdown files]
 ```
 
 ### Review Pipeline
@@ -683,7 +683,7 @@ sequenceDiagram
     GH-->>CLI: existing code comments
     CLI->>Agent: ReviewInput (diff + metadata + existing comments)
     Agent-->>CLI: ReviewOutput (comments)
-    CLI->>FS: write reviews/pr-17509-.../
+    CLI->>FS: write ~/.local/share/prr/reviews/pr-17509-.../
     CLI->>User: summary + file list
 ```
 
@@ -885,7 +885,7 @@ $ prr
 
 ✓ Review complete.
 → 2 critical, 5 suggestions, 3 nits, 1 praise
-→ Output: reviews/pr-17509-20250311-143000/
+→ Output: ~/.local/share/prr/reviews/pr-17509-20250311-143000/
 ```
 
 ### Review a specific PR with a specific agent
@@ -899,7 +899,7 @@ $ prr 17480 --agent gpt
 
 ✓ Review complete.
 → 0 critical, 4 suggestions, 2 nits
-→ Output: reviews/pr-17480-20250311-150000/
+→ Output: ~/.local/share/prr/reviews/pr-17480-20250311-150000/
 ```
 
 ### Compare reviews from multiple agents
@@ -911,13 +911,13 @@ $ prr 17509 --all
 → Reviewing with 2 agents...
 
 ✓ Review complete.
-→ Output: reviews/pr-17509-20250311-143000/
+→ Output: ~/.local/share/prr/reviews/pr-17509-20250311-143000/
 
   claude/  2 critical, 5 suggestions, 3 nits
   gpt/     1 critical, 3 suggestions, 4 nits
 ```
 
-### Review local branches (no PR required)
+### Review local branches
 
 ```
 $ prr --base main
@@ -929,7 +929,7 @@ $ prr --base main
 
 ✓ Review complete.
 → 1 critical, 3 suggestions, 2 nits
-→ Output: reviews/review-main-vs-feature-auth-20250311-143000/
+→ Output: ~/.local/share/prr/reviews/review-main-vs-feature-auth-20250311-143000/
 ```
 
 ### Review a specific repo
@@ -944,13 +944,13 @@ $ prr --repo ../other-project --base develop --head feature/api --agent gpt
 
 ✓ Review complete.
 → 0 critical, 6 suggestions, 3 nits
-→ Output: reviews/review-develop-vs-feature-api-20250311-160000/
+→ Output: ~/.local/share/prr/reviews/review-develop-vs-feature-api-20250311-160000/
 ```
 
 ### Copy-paste a comment into GitHub
 
 ```
-$ cat reviews/pr-17509-20250311-143000/files/src-auth-handler-go.md
+$ cat ~/.local/share/prr/reviews/pr-17509-20250311-143000/files/src-auth-handler-go.md
 ```
 
 ```markdown
