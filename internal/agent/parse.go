@@ -75,9 +75,10 @@ func extractJSONObject(s string) (string, bool) {
 		if inString {
 			continue
 		}
-		if c == '{' {
+		switch c {
+		case '{':
 			depth++
-		} else if c == '}' {
+		case '}':
 			depth--
 			if depth == 0 {
 				return s[start : i+1], true

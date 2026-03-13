@@ -267,6 +267,28 @@ func TestExists_True(t *testing.T) {
 	}
 }
 
+func TestDefaultDataDir_XDG(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/custom/data")
+	got := DefaultDataDir()
+	expected := filepath.Join("/custom/data", "prr")
+	if got != expected {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
+}
+
+func TestDefaultDataDir_Fallback(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "")
+	got := DefaultDataDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := filepath.Join(home, ".local", "share", "prr")
+	if got != expected {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
+}
+
 func TestCLIProviders(t *testing.T) {
 	if !CLIProviders["claude-cli"] {
 		t.Error("expected claude-cli in CLIProviders")
