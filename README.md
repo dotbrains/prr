@@ -61,7 +61,7 @@ prr --repo /path/to/repo --base main --head feature-branch
 2. Sends the diff to an AI agent.
 3. Writes review comments to `~/.local/share/prr/reviews/review-<base>-vs-<head>-<timestamp>/`.
 
-Output is organized as one markdown file per reviewed source file, designed for direct copy-paste into GitHub's PR review interface.
+Output is organized into severity-based subdirectories (`critical/`, `suggestion/`, `nit/`, `praise/`), each containing one markdown file per reviewed source file — designed for direct copy-paste into GitHub's PR review interface.
 
 ## Installation
 
@@ -106,7 +106,16 @@ export ANTHROPIC_API_KEY=sk-...
 prr agents
 ```
 
-Config lives at `~/.config/prr/config.yaml`. See [SPEC.md](SPEC.md) for the full config format.
+Config lives at `~/.config/prr/config.yaml`. To only see specific severity levels (e.g. skip nits and praise):
+
+```yaml
+output:
+  severities:
+    - critical
+    - suggestion
+```
+
+See [SPEC.md](SPEC.md) for the full config format.
 
 ## Commands
 
@@ -128,9 +137,12 @@ PR reviews:
 ~/.local/share/prr/reviews/
   pr-17509-20250311-143000/
     summary.md                        # Overall review
-    files/
+    critical/
       src-auth-handler-go.md          # Per-file comments
+    suggestion/
       src-middleware-session-go.md
+    nit/
+      src-auth-handler-go.md
 ```
 
 Local branch reviews:
@@ -138,11 +150,13 @@ Local branch reviews:
 ~/.local/share/prr/reviews/
   review-main-vs-feature-auth-20250311-143000/
     summary.md
-    files/
+    critical/
+      src-auth-handler-go.md
+    suggestion/
       src-auth-handler-go.md
 ```
 
-Each file contains comments organized by line number with severity levels (`critical`, `suggestion`, `nit`, `praise`).
+Comments are organized into subdirectories by severity level (`critical`, `suggestion`, `nit`, `praise`). Only directories with comments are created.
 
 ## Dependencies
 

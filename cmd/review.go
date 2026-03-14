@@ -45,20 +45,26 @@ func runReview(cmd *cobra.Command, args []string) error {
 	noPraise, _ := cmd.Flags().GetBool("no-praise")
 	minSeverity, _ := cmd.Flags().GetString("min-severity")
 
+	filterOpts := commentFilterOpts{
+		allowedSeverities: cfg.Output.Severities,
+		noPraise:          noPraise,
+		minSeverity:       minSeverity,
+	}
+
 	if isLocalMode() {
-		return runLocalReview(cmd, ctx, cfg, outputDir, noPraise, minSeverity)
+		return runLocalReview(cmd, ctx, cfg, outputDir, filterOpts)
 	}
 
 	// Check if the argument is a PR URL
 	if len(args) > 0 && gh.IsPRURL(args[0]) {
-		return runURLReview(cmd, ctx, cfg, args[0], outputDir, noPraise, minSeverity)
+		return runURLReview(cmd, ctx, cfg, args[0], outputDir, filterOpts)
 	}
 
-	return runPRReview(cmd, ctx, cfg, args, "", outputDir, noPraise, minSeverity)
+	return runPRReview(cmd, ctx, cfg, args, "", outputDir, filterOpts)
 }
 
 // runLocalReview handles the --repo/--base local git review path.
-func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, outputDir string, noPraise bool, minSeverity string) error {
+func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, outputDir string, filter commentFilterOpts) error {
 	executor := exec.NewRealExecutor()
 	gitClient := gitpkg.NewClient(executor)
 
@@ -138,13 +144,13 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 	}
 
 	if flagAll {
-		return runAllAgents(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
+		return runAllAgents(cmd, ctx, cfg, input, outputDir, filter)
 	}
-	return runSingleAgent(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
+	return runSingleAgent(cmd, ctx, cfg, input, outputDir, filter)
 }
 
 // runURLReview handles review via a GitHub PR URL.
-func runURLReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, prURL string, outputDir string, noPraise bool, minSeverity string) error {
+func runURLReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, prURL string, outputDir string, filter commentFilterOpts) error {
 	owner, repo, prNumber, err := gh.ParsePRURL(prURL)
 	if err != nil {
 		return err
@@ -153,12 +159,12 @@ func runURLReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, p
 
 	fmt.Fprintf(cmd.OutOrStdout(), "→ Remote: %s\n", repoSlug)
 
-	return runPRReview(cmd, ctx, cfg, nil, repoSlug, outputDir, noPraise, minSeverity, strconv.Itoa(prNumber))
+	return runPRReview(cmd, ctx, cfg, nil, repoSlug, outputDir, filter, strconv.Itoa(prNumber))
 }
 
 // runPRReview handles the original GitHub PR review path.
 // prNumberOverride is used when the PR number is already known (e.g. from URL parsing).
-func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, args []string, repoSlug string, outputDir string, noPraise bool, minSeverity string, prNumberOverride ...string) error {
+func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, args []string, repoSlug string, outputDir string, filter commentFilterOpts, prNumberOverride ...string) error {
 	executor := exec.NewRealExecutor()
 	var ghClient *gh.Client
 	if repoSlug != "" {
@@ -241,12 +247,12 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 	}
 
 	if flagAll {
-		return runAllAgents(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
+		return runAllAgents(cmd, ctx, cfg, input, outputDir, filter)
 	}
-	return runSingleAgent(cmd, ctx, cfg, input, outputDir, noPraise, minSeverity)
+	return runSingleAgent(cmd, ctx, cfg, input, outputDir, filter)
 }
 
-func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config, input *agent.ReviewInput, outputDir string, noPraise bool, minSeverity string) error {
+func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config, input *agent.ReviewInput, outputDir string, filter commentFilterOpts) error {
 	agentName := flagAgent
 	if agentName == "" {
 		agentName = cfg.DefaultAgent
@@ -273,7 +279,7 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 	}
 
 	// Apply filters
-	output.Comments = filterComments(output.Comments, noPraise, minSeverity)
+	output.Comments = filterComments(output.Comments, filter)
 
 	// Write output
 	opts := writer.WriteOptions{
@@ -295,7 +301,7 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 	return nil
 }
 
-func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, input *agent.ReviewInput, outputDir string, noPraise bool, minSeverity string) error {
+func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, input *agent.ReviewInput, outputDir string, filter commentFilterOpts) error {
 	agents, err := agent.AllAgentsFromConfig(cfg)
 	if err != nil {
 		return err
@@ -354,7 +360,7 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 			fmt.Fprintf(cmd.ErrOrStderr(), "⚠ Agent %s failed: %v\n", r.name, r.err)
 			continue
 		}
-		r.output.Comments = filterComments(r.output.Comments, noPraise, minSeverity)
+		r.output.Comments = filterComments(r.output.Comments, filter)
 		outputs[r.name] = &writer.AgentOutput{
 			Output: r.output,
 			Model:  r.model,
@@ -386,9 +392,18 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 	return nil
 }
 
-func filterComments(comments []agent.ReviewComment, noPraise bool, minSeverity string) []agent.ReviewComment {
-	if !noPraise && minSeverity == "" {
-		return comments
+// commentFilterOpts bundles all comment filtering criteria.
+type commentFilterOpts struct {
+	allowedSeverities []string // from config output.severities
+	noPraise          bool     // --no-praise flag
+	minSeverity       string   // --min-severity flag
+}
+
+func filterComments(comments []agent.ReviewComment, opts commentFilterOpts) []agent.ReviewComment {
+	// Build allowed set from config severities.
+	allowed := make(map[string]bool, len(opts.allowedSeverities))
+	for _, s := range opts.allowedSeverities {
+		allowed[s] = true
 	}
 
 	severityOrder := map[string]int{
@@ -399,15 +414,19 @@ func filterComments(comments []agent.ReviewComment, noPraise bool, minSeverity s
 	}
 
 	minLevel := -1
-	if minSeverity != "" {
-		if lvl, ok := severityOrder[minSeverity]; ok {
+	if opts.minSeverity != "" {
+		if lvl, ok := severityOrder[opts.minSeverity]; ok {
 			minLevel = lvl
 		}
 	}
 
 	var filtered []agent.ReviewComment
 	for _, c := range comments {
-		if noPraise && c.Severity == "praise" {
+		// Config-level severity filter.
+		if len(allowed) > 0 && !allowed[c.Severity] {
+			continue
+		}
+		if opts.noPraise && c.Severity == "praise" {
 			continue
 		}
 		if minLevel >= 0 {

@@ -10,12 +10,14 @@ import (
 	"github.com/dotbrains/prr/internal/agent"
 )
 
+var allSeverities = []string{"critical", "suggestion", "nit", "praise"}
+
 func TestFilterComments_NoFilters(t *testing.T) {
 	comments := []agent.ReviewComment{
 		{Severity: "critical", Body: "bug"},
 		{Severity: "praise", Body: "nice"},
 	}
-	got := filterComments(comments, false, "")
+	got := filterComments(comments, commentFilterOpts{allowedSeverities: allSeverities})
 	if len(got) != 2 {
 		t.Errorf("expected 2, got %d", len(got))
 	}
@@ -27,7 +29,7 @@ func TestFilterComments_NoPraise(t *testing.T) {
 		{Severity: "praise", Body: "nice"},
 		{Severity: "suggestion", Body: "refactor"},
 	}
-	got := filterComments(comments, true, "")
+	got := filterComments(comments, commentFilterOpts{allowedSeverities: allSeverities, noPraise: true})
 	if len(got) != 2 {
 		t.Errorf("expected 2, got %d", len(got))
 	}
@@ -47,13 +49,13 @@ func TestFilterComments_MinSeverity(t *testing.T) {
 	}
 
 	// min=suggestion filters out nit and praise
-	got := filterComments(comments, false, "suggestion")
+	got := filterComments(comments, commentFilterOpts{allowedSeverities: allSeverities, minSeverity: "suggestion"})
 	if len(got) != 2 {
 		t.Errorf("expected 2, got %d", len(got))
 	}
 
 	// min=critical filters out everything except critical
-	got = filterComments(comments, false, "critical")
+	got = filterComments(comments, commentFilterOpts{allowedSeverities: allSeverities, minSeverity: "critical"})
 	if len(got) != 1 {
 		t.Errorf("expected 1, got %d", len(got))
 	}
@@ -66,7 +68,7 @@ func TestFilterComments_NoPraiseAndMinSeverity(t *testing.T) {
 		{Severity: "praise", Body: "c"},
 	}
 	// min=nit + no-praise: keeps critical and nit
-	got := filterComments(comments, true, "nit")
+	got := filterComments(comments, commentFilterOpts{allowedSeverities: allSeverities, noPraise: true, minSeverity: "nit"})
 	if len(got) != 2 {
 		t.Errorf("expected 2, got %d", len(got))
 	}
@@ -77,7 +79,33 @@ func TestFilterComments_UnknownSeverity(t *testing.T) {
 		{Severity: "critical", Body: "a"},
 	}
 	// Unknown min severity should not filter anything.
-	got := filterComments(comments, false, "unknown")
+	got := filterComments(comments, commentFilterOpts{allowedSeverities: allSeverities, minSeverity: "unknown"})
+	if len(got) != 1 {
+		t.Errorf("expected 1, got %d", len(got))
+	}
+}
+
+func TestFilterComments_ConfigSeverities(t *testing.T) {
+	comments := []agent.ReviewComment{
+		{Severity: "critical", Body: "a"},
+		{Severity: "suggestion", Body: "b"},
+		{Severity: "nit", Body: "c"},
+		{Severity: "praise", Body: "d"},
+	}
+
+	// Only allow critical and suggestion via config
+	got := filterComments(comments, commentFilterOpts{allowedSeverities: []string{"critical", "suggestion"}})
+	if len(got) != 2 {
+		t.Errorf("expected 2, got %d", len(got))
+	}
+	for _, c := range got {
+		if c.Severity == "nit" || c.Severity == "praise" {
+			t.Errorf("severity %q should be filtered", c.Severity)
+		}
+	}
+
+	// Only critical
+	got = filterComments(comments, commentFilterOpts{allowedSeverities: []string{"critical"}})
 	if len(got) != 1 {
 		t.Errorf("expected 1, got %d", len(got))
 	}

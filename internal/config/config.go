@@ -33,7 +33,8 @@ type ReviewConfig struct {
 
 // OutputConfig controls where review output is written.
 type OutputConfig struct {
-	Dir string `yaml:"dir"`
+	Dir        string   `yaml:"dir"`
+	Severities []string `yaml:"severities"`
 }
 
 // CLIProviders are providers that use local CLI binaries and don't need API keys.
@@ -103,6 +104,12 @@ func DefaultConfig() *Config {
 		},
 		Output: OutputConfig{
 			Dir: filepath.Join(DefaultDataDir(), "reviews"),
+			Severities: []string{
+				"critical",
+				"suggestion",
+				"nit",
+				"praise",
+			},
 		},
 	}
 }

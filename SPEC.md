@@ -75,7 +75,23 @@ review:
 
 output:
   dir: ~/.local/share/prr/reviews
+  severities:
+    - critical
+    - suggestion
+    - nit
+    - praise
 ```
+
+`output.severities` controls which severity levels are included in the review output. Remove entries to exclude them by default. For example, to only see critical issues and suggestions:
+
+```yaml
+output:
+  severities:
+    - critical
+    - suggestion
+```
+
+The `--min-severity` and `--no-praise` CLI flags further narrow the output on a per-run basis.
 
 ### `prr config init`
 
@@ -303,10 +319,13 @@ PR mode — single agent (default):
 ~/.local/share/prr/reviews/
   pr-17509-20250311-143000/
     summary.md
-    files/
+    critical/
       src-auth-handler-go.md
+    suggestion/
       src-middleware-session-go.md
       cmd-server-go.md
+    nit/
+      src-auth-handler-go.md
 ```
 
 Local mode — single agent:
@@ -315,11 +334,13 @@ Local mode — single agent:
 ~/.local/share/prr/reviews/
   review-main-vs-feature-auth-20250311-143000/
     summary.md
-    files/
+    critical/
+      src-auth-handler-go.md
+    suggestion/
       src-auth-handler-go.md
 ```
 
-Branch names with slashes are sanitized (`feature/auth` → `feature-auth`).
+Branch names with slashes are sanitized (`feature/auth` → `feature-auth`). Only severity directories with comments are created.
 
 Multi-agent (`--all`):
 
@@ -328,11 +349,11 @@ Multi-agent (`--all`):
   pr-17509-20250311-143000/
     claude/
       summary.md
-      files/
+      critical/
         src-auth-handler-go.md
     gpt/
       summary.md
-      files/
+      suggestion/
         src-auth-handler-go.md
 ```
 
@@ -379,12 +400,13 @@ is correct, but the lock scope is wider than it needs to be.
 
 ### Per-File Comment Files
 
-Each file in `files/` contains comments for a single source file, organized by line number. Format is designed for direct copy-paste into GitHub:
+Comments are organized into subdirectories by severity (`critical/`, `suggestion/`, `nit/`, `praise/`). Each subdirectory contains one markdown file per source file with comments of that severity, sorted by line number. Format is designed for direct copy-paste into GitHub:
 
+`critical/src-auth-handler-go.md`:
 ```markdown
 # src/auth/handler.go
 
-## Line 42 — critical
+## Line 42
 
 The mutex is acquired but never released in the error path on line 47.
 This will deadlock under concurrent load when `refreshToken()` returns
@@ -392,18 +414,24 @@ an error.
 
 Add a `defer mu.Unlock()` immediately after the lock, or restructure
 so the early return can't skip the unlock:
+```
 
----
+`suggestion/src-auth-handler-go.md`:
+```markdown
+# src/auth/handler.go
 
-## Lines 55-60 — suggestion
+## Lines 55-60
 
 This re-fetches the user from the database on every request even when
 the session is still valid. Pull the user lookup inside the `if expired`
 branch — you'll cut a DB round-trip on every authenticated request.
+```
 
----
+`nit/src-auth-handler-go.md`:
+```markdown
+# src/auth/handler.go
 
-## Line 78 — nit
+## Line 78
 
 `userID` is shadowed by the short variable declaration on line 80.
 Not a bug here, but it makes the function harder to follow.

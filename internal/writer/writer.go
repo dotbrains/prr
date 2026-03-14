@@ -38,8 +38,7 @@ func Write(output *agent.ReviewOutput, opts WriteOptions) (string, error) {
 		reviewDir = filepath.Join(reviewDir, opts.AgentName)
 	}
 
-	filesDir := filepath.Join(reviewDir, "files")
-	if err := os.MkdirAll(filesDir, 0o755); err != nil {
+	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
 		return "", fmt.Errorf("creating output directory: %w", err)
 	}
 
@@ -48,12 +47,9 @@ func Write(output *agent.ReviewOutput, opts WriteOptions) (string, error) {
 		return "", err
 	}
 
-	// Write per-file comment files
-	byFile := output.CommentsByFile()
-	for filePath, comments := range byFile {
-		if err := writeFileComments(filesDir, filePath, comments); err != nil {
-			return "", err
-		}
+	// Write per-file comment files organized by severity
+	if err := writeCommentsBySeverity(reviewDir, output.Comments); err != nil {
+		return "", err
 	}
 
 	return reviewDir, nil
@@ -81,8 +77,7 @@ func WriteMulti(outputs map[string]*agentOutput, opts WriteMultiOptions) (string
 
 	for agentName, ao := range outputs {
 		agentDir := filepath.Join(reviewDir, agentName)
-		filesDir := filepath.Join(agentDir, "files")
-		if err := os.MkdirAll(filesDir, 0o755); err != nil {
+		if err := os.MkdirAll(agentDir, 0o755); err != nil {
 			return "", fmt.Errorf("creating output directory for %s: %w", agentName, err)
 		}
 
@@ -98,11 +93,8 @@ func WriteMulti(outputs map[string]*agentOutput, opts WriteMultiOptions) (string
 			return "", err
 		}
 
-		byFile := ao.Output.CommentsByFile()
-		for filePath, comments := range byFile {
-			if err := writeFileComments(filesDir, filePath, comments); err != nil {
-				return "", err
-			}
+		if err := writeCommentsBySeverity(agentDir, ao.Output.Comments); err != nil {
+			return "", err
 		}
 	}
 
@@ -151,8 +143,43 @@ func writeSummary(dir string, output *agent.ReviewOutput, opts WriteOptions) err
 	return nil
 }
 
-func writeFileComments(filesDir string, filePath string, comments []agent.ReviewComment) error {
-	// Sort comments by start line
+// severityOrder defines the display order for severity directories.
+var severityOrder = []string{"critical", "suggestion", "nit", "praise"}
+
+// writeCommentsBySeverity organizes comments into severity-based subdirectories,
+// with one markdown file per source file inside each severity directory.
+func writeCommentsBySeverity(reviewDir string, comments []agent.ReviewComment) error {
+	// Group: severity → file → comments
+	grouped := make(map[string]map[string][]agent.ReviewComment)
+	for _, c := range comments {
+		if grouped[c.Severity] == nil {
+			grouped[c.Severity] = make(map[string][]agent.ReviewComment)
+		}
+		grouped[c.Severity][c.File] = append(grouped[c.Severity][c.File], c)
+	}
+
+	for _, sev := range severityOrder {
+		byFile, ok := grouped[sev]
+		if !ok || len(byFile) == 0 {
+			continue
+		}
+
+		sevDir := filepath.Join(reviewDir, sev)
+		if err := os.MkdirAll(sevDir, 0o755); err != nil {
+			return fmt.Errorf("creating %s directory: %w", sev, err)
+		}
+
+		for filePath, fileComments := range byFile {
+			if err := writeFileComments(sevDir, filePath, fileComments); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func writeFileComments(sevDir string, filePath string, comments []agent.ReviewComment) error {
+	// Sort comments by start line.
 	sort.Slice(comments, func(i, j int) bool {
 		return comments[i].StartLine < comments[j].StartLine
 	})
@@ -163,9 +190,9 @@ func writeFileComments(filesDir string, filePath string, comments []agent.Review
 	for i, c := range comments {
 		sb.WriteString("\n")
 		if c.StartLine == c.EndLine || c.EndLine == 0 {
-			fmt.Fprintf(&sb, "## Line %d — %s\n", c.StartLine, c.Severity)
+			fmt.Fprintf(&sb, "## Line %d\n", c.StartLine)
 		} else {
-			fmt.Fprintf(&sb, "## Lines %d-%d — %s\n", c.StartLine, c.EndLine, c.Severity)
+			fmt.Fprintf(&sb, "## Lines %d-%d\n", c.StartLine, c.EndLine)
 		}
 		sb.WriteString("\n")
 		sb.WriteString(c.Body)
@@ -176,9 +203,8 @@ func writeFileComments(filesDir string, filePath string, comments []agent.Review
 		}
 	}
 
-	// Convert file path to a safe filename: src/auth/handler.go → src-auth-handler-go.md
 	safeName := pathToFilename(filePath)
-	outPath := filepath.Join(filesDir, safeName)
+	outPath := filepath.Join(sevDir, safeName)
 	if err := os.WriteFile(outPath, []byte(sb.String()), 0o644); err != nil {
 		return fmt.Errorf("writing comments for %s: %w", filePath, err)
 	}

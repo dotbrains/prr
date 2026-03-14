@@ -49,29 +49,42 @@ func TestWrite_SingleAgent(t *testing.T) {
 		t.Error("summary.md missing agent name")
 	}
 
-	// Check files directory exists
-	filesDir := filepath.Join(reviewDir, "files")
-	if _, err := os.Stat(filesDir); os.IsNotExist(err) {
-		t.Error("files/ directory not created")
+	// Check severity directories exist
+	criticalDir := filepath.Join(reviewDir, "critical")
+	if _, err := os.Stat(criticalDir); os.IsNotExist(err) {
+		t.Error("critical/ directory not created")
+	}
+	suggestionDir := filepath.Join(reviewDir, "suggestion")
+	if _, err := os.Stat(suggestionDir); os.IsNotExist(err) {
+		t.Error("suggestion/ directory not created")
+	}
+	nitDir := filepath.Join(reviewDir, "nit")
+	if _, err := os.Stat(nitDir); os.IsNotExist(err) {
+		t.Error("nit/ directory not created")
 	}
 
-	// Check per-file comment files
-	mainComments := filepath.Join(filesDir, "main-go.md")
-	if _, err := os.Stat(mainComments); os.IsNotExist(err) {
-		t.Error("main-go.md not created")
+	// Check per-file comment files in correct severity dirs
+	criticalMain := filepath.Join(criticalDir, "main-go.md")
+	if _, err := os.Stat(criticalMain); os.IsNotExist(err) {
+		t.Error("critical/main-go.md not created")
+	}
+	criticalContent, _ := os.ReadFile(criticalMain)
+	if !strings.Contains(string(criticalContent), "Line 10") {
+		t.Error("critical/main-go.md missing line 10 comment")
 	}
 
-	mainContent, _ := os.ReadFile(mainComments)
-	if !strings.Contains(string(mainContent), "Line 10") {
-		t.Error("main-go.md missing line 10 comment")
+	suggestionMain := filepath.Join(suggestionDir, "main-go.md")
+	if _, err := os.Stat(suggestionMain); os.IsNotExist(err) {
+		t.Error("suggestion/main-go.md not created")
 	}
-	if !strings.Contains(string(mainContent), "Lines 20-25") {
-		t.Error("main-go.md missing lines 20-25 comment")
+	suggestionContent, _ := os.ReadFile(suggestionMain)
+	if !strings.Contains(string(suggestionContent), "Lines 20-25") {
+		t.Error("suggestion/main-go.md missing lines 20-25 comment")
 	}
 
-	rootComments := filepath.Join(filesDir, "cmd-root-go.md")
-	if _, err := os.Stat(rootComments); os.IsNotExist(err) {
-		t.Error("cmd-root-go.md not created")
+	nitRoot := filepath.Join(nitDir, "cmd-root-go.md")
+	if _, err := os.Stat(nitRoot); os.IsNotExist(err) {
+		t.Error("nit/cmd-root-go.md not created")
 	}
 }
 
@@ -101,6 +114,9 @@ func TestWrite_MultiAgentFlag(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(reviewDir, "summary.md")); os.IsNotExist(err) {
 		t.Error("summary.md not created")
+	}
+	if _, err := os.Stat(filepath.Join(reviewDir, "nit", "a-go.md")); os.IsNotExist(err) {
+		t.Error("nit/a-go.md not created")
 	}
 }
 
@@ -158,13 +174,19 @@ func TestWrite_MultiAgent(t *testing.T) {
 	}
 
 	// Check both agent directories
-	for _, name := range []string{"claude", "gpt"} {
-		agentDir := filepath.Join(reviewDir, name)
+	for _, tc := range []struct {
+		agent   string
+		sev     string
+	}{
+		{"claude", "nit"},
+		{"gpt", "suggestion"},
+	} {
+		agentDir := filepath.Join(reviewDir, tc.agent)
 		if _, err := os.Stat(filepath.Join(agentDir, "summary.md")); os.IsNotExist(err) {
-			t.Errorf("%s/summary.md not created", name)
+			t.Errorf("%s/summary.md not created", tc.agent)
 		}
-		if _, err := os.Stat(filepath.Join(agentDir, "files", "main-go.md")); os.IsNotExist(err) {
-			t.Errorf("%s/files/main-go.md not created", name)
+		if _, err := os.Stat(filepath.Join(agentDir, tc.sev, "main-go.md")); os.IsNotExist(err) {
+			t.Errorf("%s/%s/main-go.md not created", tc.agent, tc.sev)
 		}
 	}
 }
@@ -223,6 +245,11 @@ func TestWrite_LocalMode(t *testing.T) {
 	if !strings.Contains(string(summary), "Review: main") {
 		t.Error("summary should contain branch comparison header")
 	}
+
+	// Comments should be in severity directory
+	if _, err := os.Stat(filepath.Join(reviewDir, "nit", "main-go.md")); os.IsNotExist(err) {
+		t.Error("nit/main-go.md not created")
+	}
 }
 
 func TestWriteMulti_LocalMode(t *testing.T) {
@@ -255,6 +282,9 @@ func TestWriteMulti_LocalMode(t *testing.T) {
 	// Check agent subdirectory
 	if _, err := os.Stat(filepath.Join(reviewDir, "claude", "summary.md")); os.IsNotExist(err) {
 		t.Error("claude/summary.md not created")
+	}
+	if _, err := os.Stat(filepath.Join(reviewDir, "claude", "nit", "a-go.md")); os.IsNotExist(err) {
+		t.Error("claude/nit/a-go.md not created")
 	}
 }
 
