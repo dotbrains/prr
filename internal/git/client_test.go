@@ -227,3 +227,102 @@ func TestGetCommitCount_Error(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestListFiles(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"git -C /tmp/repo ls-tree --name-only main src/": "src/handler.go\nsrc/auth.go\n",
+		},
+	}
+	client := NewClient(mock)
+
+	files, err := client.ListFiles(context.Background(), "/tmp/repo", "main", "src")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+	if files[0] != "src/handler.go" {
+		t.Errorf("expected src/handler.go, got %q", files[0])
+	}
+}
+
+func TestListFiles_RootDir(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"git -C /tmp/repo ls-tree --name-only main ": "README.md\nmain.go\n",
+		},
+	}
+	client := NewClient(mock)
+
+	files, err := client.ListFiles(context.Background(), "/tmp/repo", "main", ".")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+}
+
+func TestListFiles_Empty(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"git -C /tmp/repo ls-tree --name-only main empty/": "\n",
+		},
+	}
+	client := NewClient(mock)
+
+	files, err := client.ListFiles(context.Background(), "/tmp/repo", "main", "empty")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if files != nil {
+		t.Errorf("expected nil for empty dir, got %v", files)
+	}
+}
+
+func TestListFiles_Error(t *testing.T) {
+	mock := &mockExecutor{
+		errors: map[string]error{
+			"git -C /tmp/repo ls-tree --name-only main bad/": fmt.Errorf("not found"),
+		},
+	}
+	client := NewClient(mock)
+
+	_, err := client.ListFiles(context.Background(), "/tmp/repo", "main", "bad")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestReadFile(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"git -C /tmp/repo show main:src/handler.go": "package src\n\nfunc Handler() {}\n",
+		},
+	}
+	client := NewClient(mock)
+
+	content, err := client.ReadFile(context.Background(), "/tmp/repo", "main", "src/handler.go")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if content == "" {
+		t.Error("expected non-empty content")
+	}
+}
+
+func TestReadFile_Error(t *testing.T) {
+	mock := &mockExecutor{
+		errors: map[string]error{
+			"git -C /tmp/repo show main:missing.go": fmt.Errorf("path not found"),
+		},
+	}
+	client := NewClient(mock)
+
+	_, err := client.ReadFile(context.Background(), "/tmp/repo", "main", "missing.go")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}

@@ -13,6 +13,7 @@ var (
 	flagRepo      string
 	flagBase      string
 	flagHead      string
+	flagNoContext bool
 )
 
 func newRootCmd(version string) *cobra.Command {
@@ -43,6 +44,7 @@ func newRootCmd(version string) *cobra.Command {
 	// Review-specific flags
 	root.Flags().Bool("no-praise", false, "skip positive/praise comments")
 	root.Flags().String("min-severity", "", "minimum severity to include (critical, suggestion, nit)")
+	root.Flags().BoolVar(&flagNoContext, "no-context", false, "disable codebase pattern context")
 
 	// Subcommands
 	root.AddCommand(newAgentsCmd())

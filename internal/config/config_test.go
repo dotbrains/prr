@@ -128,6 +128,17 @@ func TestReviewConfig_IgnorePatterns(t *testing.T) {
 	}
 }
 
+func TestReviewConfig_CodebaseContextDefaults(t *testing.T) {
+	cfg := DefaultConfig()
+
+	if !cfg.Review.CodebaseContext {
+		t.Error("expected codebase_context to default to true")
+	}
+	if cfg.Review.MaxContextLines != 2000 {
+		t.Errorf("expected max_context_lines 2000, got %d", cfg.Review.MaxContextLines)
+	}
+}
+
 func TestReviewConfig_SeverityLevels(t *testing.T) {
 	cfg := DefaultConfig()
 

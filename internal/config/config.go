@@ -26,9 +26,11 @@ type AgentConfig struct {
 
 // ReviewConfig controls review behavior.
 type ReviewConfig struct {
-	MaxDiffLines   int      `yaml:"max_diff_lines"`
-	IgnorePatterns []string `yaml:"ignore_patterns"`
-	SeverityLevels []string `yaml:"severity_levels"`
+	MaxDiffLines    int      `yaml:"max_diff_lines"`
+	IgnorePatterns  []string `yaml:"ignore_patterns"`
+	SeverityLevels  []string `yaml:"severity_levels"`
+	CodebaseContext bool     `yaml:"codebase_context"`
+	MaxContextLines int      `yaml:"max_context_lines"`
 }
 
 // OutputConfig controls where review output is written.
@@ -83,7 +85,9 @@ func DefaultConfig() *Config {
 			},
 		},
 		Review: ReviewConfig{
-			MaxDiffLines: 10000,
+			MaxDiffLines:    10000,
+			CodebaseContext: true,
+			MaxContextLines: 2000,
 			IgnorePatterns: []string{
 				"*.lock",
 				"go.sum",

@@ -149,6 +149,82 @@ func TestBuildSystemPrompt_ContainsExistingCommentsInstructions(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPrompt_CodebasePatternSection(t *testing.T) {
+	prompt := BuildSystemPrompt()
+	if !strings.Contains(prompt, "CODEBASE PATTERN CONSISTENCY") {
+		t.Error("system prompt should contain CODEBASE PATTERN CONSISTENCY section")
+	}
+	if !strings.Contains(prompt, "ESTABLISHED PATTERNS") {
+		t.Error("system prompt should reference established patterns")
+	}
+}
+
+func TestBuildUserPrompt_WithCodebaseContext(t *testing.T) {
+	input := &ReviewInput{
+		PRNumber:   42,
+		PRTitle:    "Fix bug",
+		BaseBranch: "main",
+		HeadBranch: "fix-bug",
+		Diff:       "some diff",
+		CodebaseContext: []CodebaseFile{
+			{Path: "src/auth.go", Content: "package src\nfunc Auth() {}\n"},
+			{Path: "src/utils.go", Content: "package src\nfunc Utils() {}\n"},
+		},
+	}
+
+	prompt := BuildUserPrompt(input)
+	if !strings.Contains(prompt, "CODEBASE CONTEXT") {
+		t.Error("prompt should contain CODEBASE CONTEXT section")
+	}
+	if !strings.Contains(prompt, "src/auth.go") {
+		t.Error("prompt should contain auth.go path")
+	}
+	if !strings.Contains(prompt, "src/utils.go") {
+		t.Error("prompt should contain utils.go path")
+	}
+	if !strings.Contains(prompt, "pattern consistency") {
+		t.Error("prompt should mention pattern consistency")
+	}
+}
+
+func TestBuildUserPrompt_WithoutCodebaseContext(t *testing.T) {
+	input := &ReviewInput{
+		PRNumber:   42,
+		PRTitle:    "Fix bug",
+		BaseBranch: "main",
+		HeadBranch: "fix-bug",
+		Diff:       "some diff",
+	}
+
+	prompt := BuildUserPrompt(input)
+	if strings.Contains(prompt, "CODEBASE CONTEXT") {
+		t.Error("prompt should not contain CODEBASE CONTEXT when none provided")
+	}
+}
+
+func TestBuildUserPrompt_CodebaseContextBeforeExistingComments(t *testing.T) {
+	input := &ReviewInput{
+		PRNumber:   42,
+		PRTitle:    "Fix bug",
+		BaseBranch: "main",
+		HeadBranch: "fix-bug",
+		Diff:       "some diff",
+		CodebaseContext: []CodebaseFile{
+			{Path: "src/auth.go", Content: "package src\n"},
+		},
+		ExistingComments: []gh.ExistingComment{
+			{Author: "alice", Body: "LGTM"},
+		},
+	}
+
+	prompt := BuildUserPrompt(input)
+	contextIdx := strings.Index(prompt, "CODEBASE CONTEXT")
+	commentsIdx := strings.Index(prompt, "EXISTING PR COMMENTS")
+	if contextIdx > commentsIdx {
+		t.Error("codebase context should appear before existing comments")
+	}
+}
+
 func TestBuildSystemPrompt_HumanLikeWritingGuidance(t *testing.T) {
 	prompt := BuildSystemPrompt()
 

@@ -57,6 +57,8 @@ agents:
 
 review:
   max_diff_lines: 10000
+  codebase_context: true
+  max_context_lines: 2000
   ignore_patterns:
     - "*.lock"
     - "go.sum"
@@ -134,6 +136,30 @@ Steps:
 8. Parses the structured response into review comments.
 9. Writes output to `~/.local/share/prr/reviews/pr-<number>-<timestamp>/`.
 10. Prints a summary to stdout.
+
+### Codebase Pattern Context
+
+In both local mode and PR mode (when run from within a git repo), `prr` automatically collects **sibling files** from the same directories as the changed files. These are read from the base branch (before the PR's changes) and included as context for the AI agent.
+
+This enables the AI to compare the PR's code against **established codebase patterns** — error handling conventions, naming styles, structural patterns, and test organization — and flag meaningful deviations.
+
+**How it works:**
+1. For each directory containing a changed file, `prr` lists all files in that directory at the base ref via `git ls-tree`.
+2. Files already in the diff are excluded (the AI already sees those).
+3. Binary files, vendored paths (`vendor/`, `node_modules/`, etc.), and lock files are skipped.
+4. Test files are skipped unless the PR itself modifies test files.
+5. File contents are read via `git show ref:path` and included in the prompt.
+6. Total context is capped at `max_context_lines` (default: 2000) to stay within token limits.
+
+**Configuration:**
+- `review.codebase_context` (bool, default: `true`) — Enable or disable codebase context collection.
+- `review.max_context_lines` (int, default: `2000`) — Maximum total lines of context to include.
+- `--no-context` CLI flag — Disable context collection for a single run.
+
+**When context is not available:**
+- URL mode (`prr https://...`) skips context collection — there is no local repo to read from.
+- If the current directory is not a git repo during PR mode, context is silently skipped.
+- Errors reading individual files are non-fatal; the review proceeds with whatever context was collected.
 
 ### `prr --base <branch>` / `prr --repo <path> --base <branch>`
 
@@ -270,6 +296,7 @@ $ prr clean --days 7
 | `--repo` | Path to a local git repo (enables local mode) |
 | `--base` | Base branch to diff against (enables local mode) |
 | `--head` | Head branch (defaults to current branch) |
+| `--no-context` | Disable codebase pattern context for this run |
 | `--version` | Print the version and exit |
 | `--help` | Show help for any command |
 
@@ -284,6 +311,7 @@ $ prr clean --days 7
 - `--head` — Head branch (defaults to current branch)
 - `--no-praise` — Skip positive/praise comments
 - `--min-severity` — Minimum severity to include (`critical`, `suggestion`, `nit`)
+- `--no-context` — Disable codebase pattern context for this run
 
 **`prr config init`:**
 - `--force` — Overwrite existing config file
@@ -491,6 +519,11 @@ type Agent interface {
 ### Types
 
 ```go
+type CodebaseFile struct {
+    Path    string
+    Content string
+}
+
 type ReviewInput struct {
     PRNumber   int
     PRTitle    string
@@ -504,6 +537,9 @@ type ReviewInput struct {
     ExistingComments       []gh.ExistingComment
     ExistingReviews        []gh.ExistingReview
     ExistingReviewComments []gh.ExistingReviewComment
+
+    // Codebase context: sibling files for pattern analysis
+    CodebaseContext []CodebaseFile
 }
 
 type FileDiff struct {
@@ -778,8 +814,11 @@ prr/
 │   ├── gh/                       # GitHub CLI wrapper
 │   │   ├── client.go             # PR resolution, diff fetching, metadata
 │   │   └── client_test.go        # Client tests (mock exec)
+│   ├── context/                  # Codebase pattern context
+│   │   ├── context.go            # CollectContext: gather sibling files for pattern analysis
+│   │   └── context_test.go       # Context collector tests
 │   ├── git/                      # Local git CLI wrapper
-│   │   ├── client.go             # Branch detection, diff fetching, repo validation
+│   │   ├── client.go             # Branch detection, diff fetching, repo validation, file listing/reading
 │   │   └── client_test.go        # Client tests (mock exec)
 │   ├── writer/                   # Output file generation
 │   │   ├── writer.go             # Write ReviewOutput to markdown files
@@ -812,7 +851,8 @@ All core logic is tested by injecting interfaces/mocks for external dependencies
 | **Anthropic agent** | Correct API request (headers, body, model), parse response, handle errors (rate limit, auth, malformed) | Mock HTTP server (`httptest`) |
 | **OpenAI agent** | Same as Anthropic, adapted for OpenAI response format | Mock HTTP server (`httptest`) |
 | **Prompt construction** | System prompt includes severity levels, human-writing rules, PR/local context | Assert on string content |
-| **Git client** | IsRepo, GetCurrentBranch, GetDefaultBranch (origin/HEAD → main → master), GetDiff, GetCommitCount | Mock `git` commands |
+| **Git client** | IsRepo, GetCurrentBranch, GetDefaultBranch (origin/HEAD → main → master), GetDiff, GetCommitCount, ListFiles, ReadFile | Mock `git` commands |
+| **Context collector** | Sibling file gathering, binary/vendor/test filtering, max lines cap, error resilience | Mock `git` client |
 | **Output writer** | Correct directory structure, file naming, markdown formatting, multi-agent nesting | Temp directory (`t.TempDir()`) |
 | **Config loading** | Load from YAML, fallback to defaults, invalid YAML error, round-trip | Temp directory with fixture files |
 | **History listing** | Correct parsing of review directory names, sorting, empty state | Temp directory |

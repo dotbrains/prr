@@ -70,6 +70,38 @@ func (c *Client) GetDiff(ctx context.Context, repoPath, base, head string) (stri
 	return strings.TrimSpace(out), nil
 }
 
+// ListFiles returns file paths in a directory at a given git ref.
+// Uses git ls-tree to list blob entries (files only, no directories).
+func (c *Client) ListFiles(ctx context.Context, repoPath, ref, dir string) ([]string, error) {
+	path := dir
+	if path == "." || path == "" {
+		path = ""
+	} else if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+
+	out, err := c.exec.Run(ctx, "git", "-C", repoPath, "ls-tree", "--name-only", ref, path)
+	if err != nil {
+		return nil, fmt.Errorf("listing files at %s:%s: %w", ref, dir, err)
+	}
+
+	raw := strings.TrimSpace(out)
+	if raw == "" {
+		return nil, nil
+	}
+	return strings.Split(raw, "\n"), nil
+}
+
+// ReadFile reads the contents of a file at a given git ref.
+// Uses git show ref:path.
+func (c *Client) ReadFile(ctx context.Context, repoPath, ref, path string) (string, error) {
+	out, err := c.exec.Run(ctx, "git", "-C", repoPath, "show", ref+":"+path)
+	if err != nil {
+		return "", fmt.Errorf("reading %s at %s: %w", path, ref, err)
+	}
+	return out, nil
+}
+
 // GetCommitCount returns the number of commits in head that are not in base.
 func (c *Client) GetCommitCount(ctx context.Context, repoPath, base, head string) (int, error) {
 	out, err := c.exec.Run(ctx, "git", "-C", repoPath, "rev-list", "--count", base+".."+head)

@@ -41,6 +41,9 @@ prr --base main
 
 # Review a specific repo and branch
 prr --repo /path/to/repo --base main --head feature-branch
+
+# Skip codebase pattern analysis
+prr 17509 --no-context
 ```
 
 ## How It Works
@@ -60,6 +63,8 @@ prr --repo /path/to/repo --base main --head feature-branch
 1. Diffs two branches in any local git repo (no GitHub PR needed).
 2. Sends the diff to an AI agent.
 3. Writes review comments to `~/.local/share/prr/reviews/review-<base>-vs-<head>-<timestamp>/`.
+
+In both modes, `prr` automatically reads sibling files from the same directories as the changed files to give the AI context about established codebase patterns. This can be disabled with `--no-context` or `review.codebase_context: false` in the config.
 
 Output is organized into severity-based subdirectories (`critical/`, `suggestion/`, `nit/`, `praise/`), each containing one markdown file per reviewed source file — designed for direct copy-paste into GitHub's PR review interface.
 
@@ -106,7 +111,16 @@ export ANTHROPIC_API_KEY=sk-...
 prr agents
 ```
 
-Config lives at `~/.config/prr/config.yaml`. To only see specific severity levels (e.g. skip nits and praise):
+Config lives at `~/.config/prr/config.yaml`.
+
+To disable codebase pattern analysis by default:
+
+```yaml
+review:
+  codebase_context: false
+```
+
+To only see specific severity levels (e.g. skip nits and praise):
 
 ```yaml
 output:

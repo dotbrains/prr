@@ -16,6 +16,7 @@ import (
 	_ "github.com/dotbrains/prr/internal/agent/codexcli"  // register provider
 	_ "github.com/dotbrains/prr/internal/agent/openai"    // register provider
 	"github.com/dotbrains/prr/internal/config"
+	contextpkg "github.com/dotbrains/prr/internal/context"
 	"github.com/dotbrains/prr/internal/diff"
 	"github.com/dotbrains/prr/internal/exec"
 	"github.com/dotbrains/prr/internal/gh"
@@ -133,14 +134,24 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 			totalLines, cfg.Review.MaxDiffLines)
 	}
 
+	// Collect codebase context for pattern analysis.
+	var codebaseCtx []agent.CodebaseFile
+	if cfg.Review.CodebaseContext && !flagNoContext {
+		codebaseCtx = contextpkg.CollectContext(ctx, gitClient, repoPath, baseBranch, files, cfg.Review.MaxContextLines)
+		if len(codebaseCtx) > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "→ context: %d sibling files\n", len(codebaseCtx))
+		}
+	}
+
 	// Build review input (no PR number, no existing comments)
 	input := &agent.ReviewInput{
-		PRNumber:   0,
-		PRTitle:    fmt.Sprintf("%s → %s", baseBranch, headBranch),
-		BaseBranch: baseBranch,
-		HeadBranch: headBranch,
-		Diff:       rawDiff,
-		Files:      files,
+		PRNumber:        0,
+		PRTitle:         fmt.Sprintf("%s → %s", baseBranch, headBranch),
+		BaseBranch:      baseBranch,
+		HeadBranch:      headBranch,
+		Diff:            rawDiff,
+		Files:           files,
+		CodebaseContext: codebaseCtx,
 	}
 
 	if flagAll {
@@ -232,6 +243,20 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 		fmt.Fprintf(cmd.OutOrStdout(), "→ context: %d existing comments\n", contextCount)
 	}
 
+	// Collect codebase context if running from a local repo.
+	var codebaseCtx []agent.CodebaseFile
+	if cfg.Review.CodebaseContext && !flagNoContext {
+		localExecutor := exec.NewRealExecutor()
+		localGit := gitpkg.NewClient(localExecutor)
+		cwd, _ := os.Getwd()
+		if err := localGit.IsRepo(ctx, cwd); err == nil {
+			codebaseCtx = contextpkg.CollectContext(ctx, localGit, cwd, meta.BaseBranch, files, cfg.Review.MaxContextLines)
+			if len(codebaseCtx) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "→ context: %d sibling files\n", len(codebaseCtx))
+			}
+		}
+	}
+
 	// Build review input
 	input := &agent.ReviewInput{
 		PRNumber:               meta.Number,
@@ -241,6 +266,7 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 		HeadBranch:             meta.HeadBranch,
 		Diff:                   rawDiff,
 		Files:                  files,
+		CodebaseContext:        codebaseCtx,
 		ExistingComments:       existingComments,
 		ExistingReviews:        existingReviews,
 		ExistingReviewComments: existingReviewComments,

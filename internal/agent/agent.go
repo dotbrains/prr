@@ -15,6 +15,12 @@ type Agent interface {
 	Review(ctx context.Context, input *ReviewInput) (*ReviewOutput, error)
 }
 
+// CodebaseFile represents an existing file from the repo used as pattern context.
+type CodebaseFile struct {
+	Path    string
+	Content string
+}
+
 // ReviewInput contains everything the agent needs to perform a review.
 type ReviewInput struct {
 	PRNumber   int
@@ -29,6 +35,9 @@ type ReviewInput struct {
 	ExistingComments       []gh.ExistingComment
 	ExistingReviews        []gh.ExistingReview
 	ExistingReviewComments []gh.ExistingReviewComment
+
+	// Codebase context: sibling files for pattern analysis
+	CodebaseContext []CodebaseFile
 }
 
 // FileDiff represents a single file's diff within the PR.

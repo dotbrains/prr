@@ -84,6 +84,19 @@ SEVERITY LEVELS:
 - "nit" — Style, naming, minor readability. Not worth blocking a PR over.
 - "praise" — Genuinely good patterns worth calling out. Use very sparingly — only when something is notably well done. Keep it brief: one sentence max.
 
+CODEBASE PATTERN CONSISTENCY:
+You may be provided with existing source files from the same directories as the changed files. These represent the ESTABLISHED PATTERNS of the codebase.
+When provided:
+- Compare the PR's code against the patterns you see in the existing files.
+- Flag deviations from established error handling patterns (e.g. wrapping errors, sentinel errors, logging).
+- Flag inconsistent naming conventions (variable names, function names, struct patterns).
+- Flag structural deviations (e.g. if other files use constructor functions and this file doesn't, or different interface patterns).
+- Flag inconsistent test patterns if test files are provided.
+- Only flag meaningful deviations — not trivial stylistic differences.
+- Use severity "suggestion" for pattern deviations unless the deviation introduces a bug (then use "critical").
+- Reference the specific existing file that demonstrates the established pattern.
+- Do NOT comment on patterns if no codebase context is provided.
+
 EXISTING COMMENTS CONTEXT:
 You may be provided with existing comments, reviews, and line-level code comments already posted on this PR.
 When provided:
@@ -142,10 +155,27 @@ func BuildUserPrompt(input *ReviewInput) string {
 		prompt += input.Diff
 	}
 
+	// Append codebase context for pattern analysis
+	prompt += buildCodebaseContextSection(input)
+
 	// Append existing comments as context
 	prompt += buildExistingCommentsSection(input)
 
 	return prompt
+}
+
+// buildCodebaseContextSection formats codebase sibling files for inclusion in the prompt.
+func buildCodebaseContextSection(input *ReviewInput) string {
+	if len(input.CodebaseContext) == 0 {
+		return ""
+	}
+
+	var section string
+	section += "\n\n--- CODEBASE CONTEXT (existing files in the same directories — use these to check for pattern consistency) ---\n"
+	for _, f := range input.CodebaseContext {
+		section += fmt.Sprintf("\n--- %s ---\n%s\n", f.Path, f.Content)
+	}
+	return section
 }
 
 // buildExistingCommentsSection formats existing PR comments for inclusion in the prompt.
