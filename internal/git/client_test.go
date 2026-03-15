@@ -326,3 +326,39 @@ func TestReadFile_Error(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestFileReaderAdapter_ListFiles(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"git -C /tmp/repo ls-tree --name-only main src/": "src/a.go\nsrc/b.go\n",
+		},
+	}
+	client := NewClient(mock)
+	adapter := NewFileReaderAdapter(client, "/tmp/repo")
+
+	files, err := adapter.ListFiles(context.Background(), "main", "src")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+}
+
+func TestFileReaderAdapter_ReadFile(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"git -C /tmp/repo show main:src/a.go": "package src\n",
+		},
+	}
+	client := NewClient(mock)
+	adapter := NewFileReaderAdapter(client, "/tmp/repo")
+
+	content, err := adapter.ReadFile(context.Background(), "main", "src/a.go")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if content != "package src\n" {
+		t.Errorf("unexpected content: %q", content)
+	}
+}

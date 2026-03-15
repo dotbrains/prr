@@ -102,6 +102,26 @@ func (c *Client) ReadFile(ctx context.Context, repoPath, ref, path string) (stri
 	return out, nil
 }
 
+// FileReaderAdapter wraps a Client with a fixed repoPath so it satisfies
+// the context.FileReader interface.
+type FileReaderAdapter struct {
+	client   *Client
+	repoPath string
+}
+
+// NewFileReaderAdapter creates a FileReaderAdapter for the given repo path.
+func NewFileReaderAdapter(c *Client, repoPath string) *FileReaderAdapter {
+	return &FileReaderAdapter{client: c, repoPath: repoPath}
+}
+
+func (a *FileReaderAdapter) ListFiles(ctx context.Context, ref, dir string) ([]string, error) {
+	return a.client.ListFiles(ctx, a.repoPath, ref, dir)
+}
+
+func (a *FileReaderAdapter) ReadFile(ctx context.Context, ref, path string) (string, error) {
+	return a.client.ReadFile(ctx, a.repoPath, ref, path)
+}
+
 // GetCommitCount returns the number of commits in head that are not in base.
 func (c *Client) GetCommitCount(ctx context.Context, repoPath, base, head string) (int, error) {
 	out, err := c.exec.Run(ctx, "git", "-C", repoPath, "rev-list", "--count", base+".."+head)

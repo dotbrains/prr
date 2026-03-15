@@ -2,6 +2,7 @@ package gh
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -180,6 +181,78 @@ func (c *Client) GetPRComments(ctx context.Context, prNumber int) ([]ExistingCom
 	}
 
 	return comments, reviews, nil
+}
+
+// ListFiles lists files in a directory at a given ref via the GitHub Contents API.
+// Returns full paths (e.g. "src/handler.go"), filtering out subdirectories.
+func (c *Client) ListFiles(ctx context.Context, ref, dir string) ([]string, error) {
+	slug := c.repoSlug
+	if slug == "" {
+		return nil, fmt.Errorf("repo slug required for remote file listing")
+	}
+
+	path := dir
+	if path == "." {
+		path = ""
+	}
+
+	apiPath := fmt.Sprintf("repos/%s/contents/%s?ref=%s", slug, path, ref)
+	out, err := c.exec.Run(ctx, "gh", "api", apiPath)
+	if err != nil {
+		return nil, fmt.Errorf("listing files at %s:%s: %w", ref, dir, err)
+	}
+
+	var entries []struct {
+		Path string `json:"path"`
+		Type string `json:"type"` // "file" or "dir"
+	}
+	if err := json.Unmarshal([]byte(out), &entries); err != nil {
+		return nil, fmt.Errorf("parsing contents response: %w", err)
+	}
+
+	var files []string
+	for _, e := range entries {
+		if e.Type == "file" {
+			files = append(files, e.Path)
+		}
+	}
+	return files, nil
+}
+
+// ReadFile reads a file's contents at a given ref via the GitHub Contents API.
+// Decodes the base64-encoded content returned by the API.
+func (c *Client) ReadFile(ctx context.Context, ref, path string) (string, error) {
+	slug := c.repoSlug
+	if slug == "" {
+		return "", fmt.Errorf("repo slug required for remote file reading")
+	}
+
+	apiPath := fmt.Sprintf("repos/%s/contents/%s?ref=%s", slug, path, ref)
+	out, err := c.exec.Run(ctx, "gh", "api", apiPath)
+	if err != nil {
+		return "", fmt.Errorf("reading %s at %s: %w", path, ref, err)
+	}
+
+	var file struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+	}
+	if err := json.Unmarshal([]byte(out), &file); err != nil {
+		return "", fmt.Errorf("parsing file response: %w", err)
+	}
+
+	if file.Encoding != "base64" {
+		return "", fmt.Errorf("unsupported encoding %q for %s", file.Encoding, path)
+	}
+
+	// GitHub returns base64 with embedded newlines; strip them before decoding.
+	clean := strings.ReplaceAll(file.Content, "\n", "")
+	decoded, err := base64.StdEncoding.DecodeString(clean)
+	if err != nil {
+		return "", fmt.Errorf("decoding base64 content for %s: %w", path, err)
+	}
+
+	return string(decoded), nil
 }
 
 // GetPRReviewComments fetches line-level review comments for a PR.

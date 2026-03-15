@@ -157,9 +157,11 @@ This enables the AI to compare the PR's code against **established codebase patt
 - `--no-context` CLI flag — Disable context collection for a single run.
 
 **When context is not available:**
-- URL mode (`prr https://...`) skips context collection — there is no local repo to read from.
-- If the current directory is not a git repo during PR mode, context is silently skipped.
+- If the current directory is not a git repo during PR mode and no repo slug is available, context is silently skipped.
 - Errors reading individual files are non-fatal; the review proceeds with whatever context was collected.
+
+**Remote context (URL mode):**
+When reviewing a PR by URL (`prr https://github.com/owner/repo/pull/123`), `prr` fetches sibling files via the GitHub Contents API (`gh api repos/{owner}/{repo}/contents/{path}?ref={ref}`). This provides the same pattern analysis as local mode without requiring a local clone.
 
 ### `prr --base <branch>` / `prr --repo <path> --base <branch>`
 

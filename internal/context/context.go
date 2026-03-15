@@ -6,8 +6,14 @@ import (
 	"strings"
 
 	"github.com/dotbrains/prr/internal/agent"
-	"github.com/dotbrains/prr/internal/git"
 )
+
+// FileReader abstracts file listing and reading so that CollectContext
+// can work with both a local git repo and the GitHub API.
+type FileReader interface {
+	ListFiles(ctx context.Context, ref, dir string) ([]string, error)
+	ReadFile(ctx context.Context, ref, path string) (string, error)
+}
 
 // skipExtensions are file extensions that are unlikely to contain useful patterns.
 var skipExtensions = map[string]bool{
@@ -24,7 +30,7 @@ var skipDirs = []string{
 
 // CollectContext gathers sibling files from the base branch for each changed file.
 // It returns CodebaseFile entries capped at maxLines total lines.
-func CollectContext(ctx context.Context, gitClient *git.Client, repoPath, baseRef string, changedFiles []agent.FileDiff, maxLines int) []agent.CodebaseFile {
+func CollectContext(ctx context.Context, reader FileReader, baseRef string, changedFiles []agent.FileDiff, maxLines int) []agent.CodebaseFile {
 	if maxLines <= 0 {
 		return nil
 	}
@@ -51,7 +57,7 @@ func CollectContext(ctx context.Context, gitClient *git.Client, repoPath, baseRe
 	totalLines := 0
 
 	for _, dir := range dirs {
-		siblings, err := gitClient.ListFiles(ctx, repoPath, baseRef, dir)
+		siblings, err := reader.ListFiles(ctx, baseRef, dir)
 		if err != nil {
 			continue // non-fatal
 		}
@@ -82,7 +88,7 @@ func CollectContext(ctx context.Context, gitClient *git.Client, repoPath, baseRe
 				continue
 			}
 
-			content, err := gitClient.ReadFile(ctx, repoPath, baseRef, sibling)
+			content, err := reader.ReadFile(ctx, baseRef, sibling)
 			if err != nil {
 				continue // non-fatal
 			}
@@ -97,7 +103,6 @@ func CollectContext(ctx context.Context, gitClient *git.Client, repoPath, baseRe
 						Path:    sibling,
 						Content: truncated,
 					})
-					totalLines += remaining
 				}
 				return result
 			}

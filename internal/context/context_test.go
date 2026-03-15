@@ -6,48 +6,56 @@ import (
 	"testing"
 
 	"github.com/dotbrains/prr/internal/agent"
-	"github.com/dotbrains/prr/internal/git"
 )
 
-// mockExecutor implements exec.CommandExecutor for testing.
-type mockExecutor struct {
-	outputs map[string]string
-	errors  map[string]error
+// mockFileReader implements the FileReader interface for testing.
+type mockFileReader struct {
+	files map[string][]string // ref:dir → list of paths
+	data  map[string]string   // ref:path → content
+	errs  map[string]error    // ref:key → error
 }
 
-func (m *mockExecutor) Run(ctx context.Context, name string, args ...string) (string, error) {
-	key := name
-	for _, a := range args {
-		key += " " + a
+func newMockFileReader() *mockFileReader {
+	return &mockFileReader{
+		files: make(map[string][]string),
+		data:  make(map[string]string),
+		errs:  make(map[string]error),
 	}
-	if err, ok := m.errors[key]; ok {
+}
+
+func (m *mockFileReader) ListFiles(_ context.Context, ref, dir string) ([]string, error) {
+	key := ref + ":" + dir
+	if err, ok := m.errs[key]; ok {
+		return nil, err
+	}
+	if files, ok := m.files[key]; ok {
+		return files, nil
+	}
+	return nil, nil
+}
+
+func (m *mockFileReader) ReadFile(_ context.Context, ref, path string) (string, error) {
+	key := ref + ":" + path
+	if err, ok := m.errs[key]; ok {
 		return "", err
 	}
-	if out, ok := m.outputs[key]; ok {
-		return out, nil
+	if data, ok := m.data[key]; ok {
+		return data, nil
 	}
-	return "", fmt.Errorf("unexpected command: %s", key)
-}
-
-func (m *mockExecutor) RunWithStdin(ctx context.Context, stdin string, name string, args ...string) (string, error) {
-	return m.Run(ctx, name, args...)
+	return "", fmt.Errorf("file not found: %s", key)
 }
 
 func TestCollectContext_Basic(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main src/": "src/handler.go\nsrc/auth.go\nsrc/utils.go\n",
-			"git -C /repo show main:src/auth.go":         "package src\n\nfunc Auth() {}\n",
-			"git -C /repo show main:src/utils.go":        "package src\n\nfunc Utils() {}\n",
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:src"] = []string{"src/handler.go", "src/auth.go", "src/utils.go"}
+	mock.data["main:src/auth.go"] = "package src\n\nfunc Auth() {}\n"
+	mock.data["main:src/utils.go"] = "package src\n\nfunc Utils() {}\n"
 
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 
 	if len(result) != 2 {
 		t.Fatalf("expected 2 context files, got %d", len(result))
@@ -61,19 +69,15 @@ func TestCollectContext_Basic(t *testing.T) {
 }
 
 func TestCollectContext_SkipsChangedFiles(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main src/": "src/handler.go\nsrc/auth.go\n",
-			"git -C /repo show main:src/auth.go":         "package src\n",
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:src"] = []string{"src/handler.go", "src/auth.go"}
+	mock.data["main:src/auth.go"] = "package src\n"
 
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 context file (handler.go excluded), got %d", len(result))
@@ -84,18 +88,14 @@ func TestCollectContext_SkipsChangedFiles(t *testing.T) {
 }
 
 func TestCollectContext_SkipsBinaryExtensions(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main src/": "src/handler.go\nsrc/logo.png\nsrc/data.bin\n",
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:src"] = []string{"src/handler.go", "src/logo.png", "src/data.bin"}
 
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 
 	if len(result) != 0 {
 		t.Errorf("expected 0 context files (all skipped), got %d", len(result))
@@ -103,18 +103,14 @@ func TestCollectContext_SkipsBinaryExtensions(t *testing.T) {
 }
 
 func TestCollectContext_SkipsVendoredPaths(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main vendor/": "vendor/lib.go\n",
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:vendor"] = []string{"vendor/lib.go"}
 
 	files := []agent.FileDiff{
 		{Path: "vendor/dep.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 
 	if len(result) != 0 {
 		t.Errorf("expected 0 context files (vendored skipped), got %d", len(result))
@@ -122,22 +118,17 @@ func TestCollectContext_SkipsVendoredPaths(t *testing.T) {
 }
 
 func TestCollectContext_SkipsTestFilesUnlessPRHasTests(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main src/": "src/handler.go\nsrc/handler_test.go\nsrc/auth.go\n",
-			"git -C /repo show main:src/auth.go":         "package src\n",
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:src"] = []string{"src/handler.go", "src/handler_test.go", "src/auth.go"}
+	mock.data["main:src/auth.go"] = "package src\n"
 
 	// No test files in the PR
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 
-	// Should skip handler_test.go, include only auth.go
 	if len(result) != 1 {
 		t.Fatalf("expected 1 context file, got %d", len(result))
 	}
@@ -147,13 +138,9 @@ func TestCollectContext_SkipsTestFilesUnlessPRHasTests(t *testing.T) {
 }
 
 func TestCollectContext_IncludesTestFilesWhenPRHasTests(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main src/": "src/handler.go\nsrc/handler_test.go\nsrc/auth_test.go\n",
-			"git -C /repo show main:src/auth_test.go":    "package src\n\nfunc TestAuth(t *testing.T) {}\n",
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:src"] = []string{"src/handler.go", "src/handler_test.go", "src/auth_test.go"}
+	mock.data["main:src/auth_test.go"] = "package src\n\nfunc TestAuth(t *testing.T) {}\n"
 
 	// PR modifies a test file
 	files := []agent.FileDiff{
@@ -161,7 +148,7 @@ func TestCollectContext_IncludesTestFilesWhenPRHasTests(t *testing.T) {
 		{Path: "src/handler_test.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 context file (auth_test.go), got %d", len(result))
@@ -172,85 +159,65 @@ func TestCollectContext_IncludesTestFilesWhenPRHasTests(t *testing.T) {
 }
 
 func TestCollectContext_RespectsMaxLines(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main src/": "src/handler.go\nsrc/big.go\nsrc/small.go\n",
-			"git -C /repo show main:src/big.go":          "line1\nline2\nline3\nline4\nline5\n",
-			"git -C /repo show main:src/small.go":        "a\n",
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:src"] = []string{"src/handler.go", "src/big.go", "src/small.go"}
+	mock.data["main:src/big.go"] = "line1\nline2\nline3\nline4\nline5\n"
+	mock.data["main:src/small.go"] = "a\n"
 
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	// Only 3 lines allowed — big.go won't fully fit (5 lines), should truncate or skip
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 3)
+	// Only 3 lines allowed — big.go won't fully fit, remaining too small to truncate
+	result := CollectContext(context.Background(), mock, "main", files, 3)
 
-	// big.go has 5 lines and max is 3, but truncation only happens if remaining > 10
-	// So big.go should not be included (remaining = 3, not > 10)
 	if len(result) != 0 {
 		t.Errorf("expected 0 files (big.go exceeds budget, remaining too small to truncate), got %d", len(result))
 	}
 }
 
 func TestCollectContext_ZeroMaxLines(t *testing.T) {
-	client := git.NewClient(&mockExecutor{})
-
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 0)
+	result := CollectContext(context.Background(), newMockFileReader(), "main", files, 0)
 	if result != nil {
 		t.Errorf("expected nil for maxLines=0, got %v", result)
 	}
 }
 
 func TestCollectContext_NegativeMaxLines(t *testing.T) {
-	client := git.NewClient(&mockExecutor{})
-
-	result := CollectContext(context.Background(), client, "/repo", "main", nil, -1)
+	result := CollectContext(context.Background(), newMockFileReader(), "main", nil, -1)
 	if result != nil {
 		t.Errorf("expected nil for maxLines=-1, got %v", result)
 	}
 }
 
 func TestCollectContext_ListFilesError(t *testing.T) {
-	mock := &mockExecutor{
-		errors: map[string]error{
-			"git -C /repo ls-tree --name-only main src/": fmt.Errorf("not found"),
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.errs["main:src"] = fmt.Errorf("not found")
 
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 	if len(result) != 0 {
 		t.Errorf("expected 0 files on list error, got %d", len(result))
 	}
 }
 
 func TestCollectContext_ReadFileError(t *testing.T) {
-	mock := &mockExecutor{
-		outputs: map[string]string{
-			"git -C /repo ls-tree --name-only main src/": "src/handler.go\nsrc/auth.go\n",
-		},
-		errors: map[string]error{
-			"git -C /repo show main:src/auth.go": fmt.Errorf("binary file"),
-		},
-	}
-	client := git.NewClient(mock)
+	mock := newMockFileReader()
+	mock.files["main:src"] = []string{"src/handler.go", "src/auth.go"}
+	mock.errs["main:src/auth.go"] = fmt.Errorf("binary file")
 
 	files := []agent.FileDiff{
 		{Path: "src/handler.go", Status: "modified"},
 	}
 
-	result := CollectContext(context.Background(), client, "/repo", "main", files, 2000)
+	result := CollectContext(context.Background(), mock, "main", files, 2000)
 	if len(result) != 0 {
 		t.Errorf("expected 0 files on read error, got %d", len(result))
 	}

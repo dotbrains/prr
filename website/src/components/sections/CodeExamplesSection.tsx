@@ -59,6 +59,8 @@ agents:
 
 review:
   max_diff_lines: 10000
+  codebase_context: true
+  max_context_lines: 2000
   ignore_patterns:
     - "*.lock"
     - "go.sum"

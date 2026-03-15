@@ -137,7 +137,8 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 	// Collect codebase context for pattern analysis.
 	var codebaseCtx []agent.CodebaseFile
 	if cfg.Review.CodebaseContext && !flagNoContext {
-		codebaseCtx = contextpkg.CollectContext(ctx, gitClient, repoPath, baseBranch, files, cfg.Review.MaxContextLines)
+		reader := gitpkg.NewFileReaderAdapter(gitClient, repoPath)
+		codebaseCtx = contextpkg.CollectContext(ctx, reader, baseBranch, files, cfg.Review.MaxContextLines)
 		if len(codebaseCtx) > 0 {
 			fmt.Fprintf(cmd.OutOrStdout(), "→ context: %d sibling files\n", len(codebaseCtx))
 		}
@@ -243,14 +244,21 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 		fmt.Fprintf(cmd.OutOrStdout(), "→ context: %d existing comments\n", contextCount)
 	}
 
-	// Collect codebase context if running from a local repo.
+	// Collect codebase context for pattern analysis.
+	// Prefer local git if we're inside the repo; otherwise use the GitHub API.
 	var codebaseCtx []agent.CodebaseFile
 	if cfg.Review.CodebaseContext && !flagNoContext {
+		var reader contextpkg.FileReader
 		localExecutor := exec.NewRealExecutor()
 		localGit := gitpkg.NewClient(localExecutor)
 		cwd, _ := os.Getwd()
 		if err := localGit.IsRepo(ctx, cwd); err == nil {
-			codebaseCtx = contextpkg.CollectContext(ctx, localGit, cwd, meta.BaseBranch, files, cfg.Review.MaxContextLines)
+			reader = gitpkg.NewFileReaderAdapter(localGit, cwd)
+		} else if repoSlug != "" {
+			reader = ghClient
+		}
+		if reader != nil {
+			codebaseCtx = contextpkg.CollectContext(ctx, reader, meta.BaseBranch, files, cfg.Review.MaxContextLines)
 			if len(codebaseCtx) > 0 {
 				fmt.Fprintf(cmd.OutOrStdout(), "→ context: %d sibling files\n", len(codebaseCtx))
 			}

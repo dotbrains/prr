@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, GitPullRequest, GitBranch, Users, FileText, Zap } from 'lucide-react';
+import { Bot, GitPullRequest, GitBranch, Users, ScanSearch, Zap } from 'lucide-react';
 
 export function FeaturesSection() {
   const features = [
@@ -25,9 +25,9 @@ export function FeaturesSection() {
       description: 'Prompt-engineered to write like a senior engineer — direct, specific, no AI-speak. Banned phrases list enforced.',
     },
     {
-      icon: <FileText className="w-6 h-6" />,
-      title: 'Structured Output',
-      description: 'One markdown file per reviewed source file. Organized by line number with severity levels. Ready to paste into GitHub.',
+      icon: <ScanSearch className="w-6 h-6" />,
+      title: 'Codebase Pattern Analysis',
+      description: 'Reads sibling files from the repo to understand established patterns. Flags deviations in error handling, naming, and structure.',
     },
     {
       icon: <Zap className="w-6 h-6" />,

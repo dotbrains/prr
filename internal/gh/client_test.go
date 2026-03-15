@@ -390,3 +390,134 @@ func TestGhPRArgs_WithSlug(t *testing.T) {
 		}
 	}
 }
+
+func TestListFiles(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh api repos/owner/repo/contents/src?ref=main": `[
+				{"path": "src/handler.go", "type": "file"},
+				{"path": "src/auth.go", "type": "file"},
+				{"path": "src/internal", "type": "dir"}
+			]`,
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	files, err := client.ListFiles(context.Background(), "main", "src")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files (dirs excluded), got %d", len(files))
+	}
+	if files[0] != "src/handler.go" {
+		t.Errorf("expected src/handler.go, got %q", files[0])
+	}
+	if files[1] != "src/auth.go" {
+		t.Errorf("expected src/auth.go, got %q", files[1])
+	}
+}
+
+func TestListFiles_RootDir(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh api repos/owner/repo/contents/?ref=main": `[
+				{"path": "README.md", "type": "file"},
+				{"path": "main.go", "type": "file"}
+			]`,
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	files, err := client.ListFiles(context.Background(), "main", ".")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+}
+
+func TestListFiles_NoSlug(t *testing.T) {
+	client := NewClient(&mockExecutor{})
+
+	_, err := client.ListFiles(context.Background(), "main", "src")
+	if err == nil {
+		t.Fatal("expected error when no repo slug")
+	}
+}
+
+func TestListFiles_Error(t *testing.T) {
+	mock := &mockExecutor{
+		errors: map[string]error{
+			"gh api repos/owner/repo/contents/bad?ref=main": fmt.Errorf("404"),
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	_, err := client.ListFiles(context.Background(), "main", "bad")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestReadFile(t *testing.T) {
+	// "package src\nfunc Auth() {}\n" base64-encoded
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh api repos/owner/repo/contents/src/auth.go?ref=main": `{
+				"content": "cGFja2FnZSBzcmMKZnVuYyBBdXRoKCkge30K",
+				"encoding": "base64"
+			}`,
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	content, err := client.ReadFile(context.Background(), "main", "src/auth.go")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if content != "package src\nfunc Auth() {}\n" {
+		t.Errorf("unexpected content: %q", content)
+	}
+}
+
+func TestReadFile_NoSlug(t *testing.T) {
+	client := NewClient(&mockExecutor{})
+
+	_, err := client.ReadFile(context.Background(), "main", "src/auth.go")
+	if err == nil {
+		t.Fatal("expected error when no repo slug")
+	}
+}
+
+func TestReadFile_UnsupportedEncoding(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh api repos/owner/repo/contents/src/auth.go?ref=main": `{
+				"content": "raw content",
+				"encoding": "utf-8"
+			}`,
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	_, err := client.ReadFile(context.Background(), "main", "src/auth.go")
+	if err == nil {
+		t.Fatal("expected error for unsupported encoding")
+	}
+}
+
+func TestReadFile_APIError(t *testing.T) {
+	mock := &mockExecutor{
+		errors: map[string]error{
+			"gh api repos/owner/repo/contents/missing.go?ref=main": fmt.Errorf("404"),
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	_, err := client.ReadFile(context.Background(), "main", "missing.go")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
