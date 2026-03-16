@@ -79,6 +79,111 @@ func TestParseReviewJSON_EmptyString(t *testing.T) {
 	}
 }
 
+func TestParseReviewJSON_TruncatedBetweenComments(t *testing.T) {
+	// Simulates token-limit truncation: first comment is complete, second is cut off.
+	input := `{"summary":"overview","comments":[{"file":"a.go","start_line":1,"end_line":1,"severity":"nit","body":"fix"},{"file":"b.go","start_li`
+	output, err := ParseReviewJSON(input)
+	if err != nil {
+		t.Fatalf("expected repair to succeed, got: %v", err)
+	}
+	if output.Summary != "overview" {
+		t.Errorf("expected summary 'overview', got %q", output.Summary)
+	}
+	if len(output.Comments) != 1 {
+		t.Errorf("expected 1 salvaged comment, got %d", len(output.Comments))
+	}
+	if !output.Truncated {
+		t.Error("expected Truncated to be true")
+	}
+}
+
+func TestParseReviewJSON_TruncatedInSummary(t *testing.T) {
+	// Truncated inside the summary string — no complete '}' at all.
+	input := `{"summary":"this is a very long summ`
+	_, err := ParseReviewJSON(input)
+	if err == nil {
+		t.Fatal("expected error when truncated in summary with no complete object")
+	}
+}
+
+func TestParseReviewJSON_TruncatedNoCompleteObject(t *testing.T) {
+	// Truncated inside the first comment — no '}' exists to anchor repair.
+	input := `{"summary":"overview","comments":[{"file":"a.go","start_`
+	_, err := ParseReviewJSON(input)
+	if err == nil {
+		t.Fatal("expected error when no complete object exists to anchor repair")
+	}
+}
+
+func TestParseReviewJSON_TruncatedWithOneCompleteComment(t *testing.T) {
+	// First comment is complete, truncation happens inside the second.
+	input := `{"summary":"overview","comments":[{"file":"a.go","start_line":1,"end_line":1,"severity":"nit","body":"ok"}, {"file":"b.go","start_`
+	output, err := ParseReviewJSON(input)
+	if err != nil {
+		t.Fatalf("expected repair to succeed, got: %v", err)
+	}
+	if output.Summary != "overview" {
+		t.Errorf("expected summary 'overview', got %q", output.Summary)
+	}
+	if len(output.Comments) != 1 {
+		t.Errorf("expected 1 salvaged comment, got %d", len(output.Comments))
+	}
+	if !output.Truncated {
+		t.Error("expected Truncated to be true")
+	}
+}
+
+func TestParseReviewJSON_TruncatedWithBraceInString(t *testing.T) {
+	// Ensure a '}' inside a quoted string doesn't fool the repair logic.
+	input := `{"summary":"has } brace","comments":[{"file":"a.go","start_line":1,"end_line":1,"severity":"nit","body":"fix {this}"},  {"file":"b`
+	output, err := ParseReviewJSON(input)
+	if err != nil {
+		t.Fatalf("expected repair to succeed, got: %v", err)
+	}
+	if len(output.Comments) != 1 {
+		t.Errorf("expected 1 salvaged comment, got %d", len(output.Comments))
+	}
+	if output.Comments[0].Body != "fix {this}" {
+		t.Errorf("expected body 'fix {this}', got %q", output.Comments[0].Body)
+	}
+}
+
+func TestParseReviewJSON_TruncatedCodeFence(t *testing.T) {
+	// Truncated response wrapped in markdown code fences (no closing fence).
+	input := "```json\n" + `{"summary":"ok","comments":[{"file":"x.go","start_line":1,"end_line":1,"severity":"nit","body":"a"},{"file":"y.go","st`
+	output, err := ParseReviewJSON(input)
+	if err != nil {
+		t.Fatalf("expected repair to succeed, got: %v", err)
+	}
+	if output.Summary != "ok" {
+		t.Errorf("expected summary 'ok', got %q", output.Summary)
+	}
+	if len(output.Comments) != 1 {
+		t.Errorf("expected 1 salvaged comment, got %d", len(output.Comments))
+	}
+	if !output.Truncated {
+		t.Error("expected Truncated to be true")
+	}
+}
+
+func TestRepairTruncatedJSON_NoJSON(t *testing.T) {
+	_, ok := repairTruncatedJSON("no json here")
+	if ok {
+		t.Error("expected false for input with no JSON")
+	}
+}
+
+func TestRepairTruncatedJSON_AlreadyValid(t *testing.T) {
+	input := `{"summary":"ok","comments":[]}`
+	repaired, ok := repairTruncatedJSON(input)
+	if !ok {
+		t.Fatal("expected true for valid JSON")
+	}
+	if repaired != input {
+		t.Errorf("expected unchanged input, got %q", repaired)
+	}
+}
+
 func TestTruncate(t *testing.T) {
 	if got := Truncate("hello", 10); got != "hello" {
 		t.Errorf("expected 'hello', got %q", got)

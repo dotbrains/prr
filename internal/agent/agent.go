@@ -66,8 +66,9 @@ type FileDiff struct {
 
 // ReviewOutput is the structured result from an AI review.
 type ReviewOutput struct {
-	Summary  string
-	Comments []ReviewComment
+	Summary   string
+	Comments  []ReviewComment
+	Truncated bool `json:"-"` // true if the response was repaired from truncated JSON
 }
 
 // ReviewComment is a single review comment on a specific location in the code.

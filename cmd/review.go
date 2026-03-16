@@ -376,6 +376,9 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 	}
 
 	printSummary(cmd, output, reviewDir)
+	if output.Truncated {
+		fmt.Fprintf(cmd.ErrOrStderr(), "\n⚠ Response was truncated — some comments may be missing. Try reviewing fewer files or using --focus.\n")
+	}
 	return nil
 }
 
@@ -437,6 +440,9 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 		if r.err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "⚠ Agent %s failed: %v\n", r.name, r.err)
 			continue
+		}
+		if r.output.Truncated {
+			fmt.Fprintf(cmd.ErrOrStderr(), "⚠ Agent %s response was truncated — some comments may be missing.\n", r.name)
 		}
 		r.output.Comments = filterComments(r.output.Comments, filter)
 		outputs[r.name] = &writer.AgentOutput{
