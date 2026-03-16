@@ -329,6 +329,34 @@ agents:
 	}
 }
 
+func TestParseFocusModes(t *testing.T) {
+	// Save and restore
+	oldFocus := flagFocus
+	defer func() { flagFocus = oldFocus }()
+
+	flagFocus = ""
+	if got := parseFocusModes(); got != nil {
+		t.Errorf("expected nil, got %v", got)
+	}
+
+	flagFocus = "security"
+	if got := parseFocusModes(); len(got) != 1 || got[0] != "security" {
+		t.Errorf("expected [security], got %v", got)
+	}
+
+	flagFocus = "security, performance, testing"
+	got := parseFocusModes()
+	if len(got) != 3 {
+		t.Errorf("expected 3 modes, got %d", len(got))
+	}
+
+	flagFocus = ",,,"
+	if got := parseFocusModes(); got != nil {
+		t.Errorf("expected nil for empty modes, got %v", got)
+	}
+}
+
+
 func TestReplaceAll(t *testing.T) {
 	tests := []struct {
 		s, old, new, want string

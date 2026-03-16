@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/dotbrains/prr/internal/agent"
+	"github.com/dotbrains/prr/internal/writer"
 )
 
 func TestExecute_Version(t *testing.T) {
@@ -30,7 +32,7 @@ func TestNewRootCmd(t *testing.T) {
 	for _, c := range root.Commands() {
 		cmds[c.Name()] = true
 	}
-	for _, want := range []string{"agents", "config", "history", "clean"} {
+	for _, want := range []string{"agents", "config", "history", "clean", "post", "describe", "ask", "diff"} {
 		if !cmds[want] {
 			t.Errorf("missing subcommand %q", want)
 		}
@@ -336,6 +338,224 @@ agents:
 	}
 	if !contains(out, "api-agent") {
 		t.Error("expected api-agent in output")
+	}
+}
+
+func TestRunPost_DryRun(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	// Create a review dir with metadata.
+	reviewsDir := filepath.Join(tmp, "reviews")
+	reviewDir := filepath.Join(reviewsDir, "pr-42-20260101-120000")
+	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	meta := writer.ReviewMetadata{
+		PRNumber:  42,
+		RepoSlug:  "owner/repo",
+		HeadSHA:   "abc123",
+		AgentName: "claude",
+		Summary:   "Found issues",
+		Comments: []agent.ReviewComment{
+			{File: "main.go", StartLine: 10, EndLine: 10, Severity: "critical", Body: "nil deref"},
+			{File: "main.go", StartLine: 20, EndLine: 25, Severity: "suggestion", Body: "refactor"},
+		},
+	}
+	data, _ := json.Marshal(meta)
+	if err := os.WriteFile(filepath.Join(reviewDir, "metadata.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"post", reviewDir, "--dry-run"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out := buf.String()
+	if !contains(out, "PR #42") {
+		t.Error("expected PR #42 in output")
+	}
+	if !contains(out, "dry run") {
+		t.Error("expected dry run note")
+	}
+	if !contains(out, "REQUEST_CHANGES") {
+		t.Error("expected REQUEST_CHANGES in payload")
+	}
+}
+
+func TestRunPost_NotPRReview(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	reviewDir := filepath.Join(tmp, "review")
+	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// metadata with pr_number=0 (local review)
+	meta := writer.ReviewMetadata{PRNumber: 0, AgentName: "test", Summary: "ok"}
+	data, _ := json.Marshal(meta)
+	if err := os.WriteFile(filepath.Join(reviewDir, "metadata.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"post", reviewDir})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for non-PR review")
+	}
+}
+
+func TestRunPost_NoReviews(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"post", "--output-dir", filepath.Join(tmp, "reviews")})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error when no reviews exist")
+	}
+}
+
+func TestRunPost_InvalidDir(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"post", filepath.Join(tmp, "nonexistent")})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for nonexistent review dir")
+	}
+}
+
+func TestRunAsk_NoReviews(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"ask", "what is this?", "--output-dir", filepath.Join(tmp, "reviews")})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error when no reviews exist")
+	}
+}
+
+func TestRunAsk_InvalidDir(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"ask", "what is this?", filepath.Join(tmp, "nonexistent")})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for nonexistent review dir")
+	}
+}
+
+func TestRunDescribe_NoGH(t *testing.T) {
+	// describe with no gh available should fail at PR resolution
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("PATH", tmp) // no gh on PATH
+
+	root := newRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs([]string{"describe"})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error when gh not available")
+	}
+}
+
+func TestBuildReviewPayload_RequestChangesOverride(t *testing.T) {
+	meta := &writer.ReviewMetadata{
+		PRNumber:  1,
+		AgentName: "test",
+		Summary:   "ok",
+		Comments: []agent.ReviewComment{
+			{File: "a.go", StartLine: 1, EndLine: 1, Severity: "nit", Body: "nit"},
+		},
+	}
+	p := buildReviewPayload(meta, "request_changes")
+	if p.Event != "REQUEST_CHANGES" {
+		t.Errorf("expected REQUEST_CHANGES, got %q", p.Event)
+	}
+}
+
+func TestBuildReviewPayload_ApproveOverride(t *testing.T) {
+	meta := &writer.ReviewMetadata{
+		PRNumber:  1,
+		AgentName: "test",
+		Summary:   "ok",
+		Comments:  []agent.ReviewComment{},
+	}
+	p := buildReviewPayload(meta, "approve")
+	if p.Event != "APPROVE" {
+		t.Errorf("expected APPROVE, got %q", p.Event)
+	}
+}
+
+func TestBuildReviewPayload_UnknownOverrideFallsBackToComment(t *testing.T) {
+	meta := &writer.ReviewMetadata{
+		PRNumber:  1,
+		AgentName: "test",
+		Summary:   "ok",
+		Comments:  []agent.ReviewComment{},
+	}
+	p := buildReviewPayload(meta, "invalid")
+	if p.Event != "COMMENT" {
+		t.Errorf("expected COMMENT fallback, got %q", p.Event)
+	}
+}
+
+func TestBuildReviewPayload_SingleLineStartLineOnly(t *testing.T) {
+	meta := &writer.ReviewMetadata{
+		PRNumber:  1,
+		AgentName: "test",
+		Summary:   "ok",
+		Comments: []agent.ReviewComment{
+			{File: "a.go", StartLine: 15, EndLine: 15, Severity: "suggestion", Body: "fix"},
+		},
+	}
+	p := buildReviewPayload(meta, "")
+	if len(p.Comments) != 1 {
+		t.Fatalf("expected 1 comment, got %d", len(p.Comments))
+	}
+	c := p.Comments[0]
+	// When StartLine == EndLine, should use StartLine as Line
+	if c.Line != 15 {
+		t.Errorf("line = %d, want 15", c.Line)
 	}
 }
 

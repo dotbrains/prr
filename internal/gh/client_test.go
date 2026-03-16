@@ -521,3 +521,195 @@ func TestReadFile_APIError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestGetPRHeadSHA(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh pr view 42 --json headRefOid --jq .headRefOid": "abc123def\n",
+		},
+	}
+	client := NewClient(mock)
+
+	sha, err := client.GetPRHeadSHA(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sha != "abc123def" {
+		t.Errorf("expected 'abc123def', got %q", sha)
+	}
+}
+
+func TestGetPRHeadSHA_WithSlug(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh pr view -R owner/repo 10 --json headRefOid --jq .headRefOid": "sha456\n",
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	sha, err := client.GetPRHeadSHA(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sha != "sha456" {
+		t.Errorf("expected 'sha456', got %q", sha)
+	}
+}
+
+func TestGetPRHeadSHA_Error(t *testing.T) {
+	mock := &mockExecutor{
+		errors: map[string]error{
+			"gh pr view 42 --json headRefOid --jq .headRefOid": fmt.Errorf("not found"),
+		},
+	}
+	client := NewClient(mock)
+
+	_, err := client.GetPRHeadSHA(context.Background(), 42)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCreateReview_WithSlug(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh api repos/owner/repo/pulls/42/reviews --method POST --input -": `{"id": 999, "html_url": "https://github.com/owner/repo/pull/42#pullrequestreview-999"}`,
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	result, err := client.CreateReview(context.Background(), 42, &ReviewPayload{
+		Body:  "test review",
+		Event: "COMMENT",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.ID != 999 {
+		t.Errorf("expected ID 999, got %d", result.ID)
+	}
+	if result.HTMLURL == "" {
+		t.Error("expected non-empty HTML URL")
+	}
+}
+
+func TestCreateReview_AutoDetectSlug(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh repo view --json nameWithOwner --jq .nameWithOwner":          "auto/repo\n",
+			"gh api repos/auto/repo/pulls/5/reviews --method POST --input -": `{"id": 1, "html_url": ""}`,
+		},
+	}
+	client := NewClient(mock)
+
+	result, err := client.CreateReview(context.Background(), 5, &ReviewPayload{
+		Body:  "test",
+		Event: "COMMENT",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.ID != 1 {
+		t.Errorf("expected ID 1, got %d", result.ID)
+	}
+}
+
+func TestCreateReview_DetectSlugFails(t *testing.T) {
+	mock := &mockExecutor{
+		errors: map[string]error{
+			"gh repo view --json nameWithOwner --jq .nameWithOwner": fmt.Errorf("not a repo"),
+		},
+	}
+	client := NewClient(mock)
+
+	_, err := client.CreateReview(context.Background(), 5, &ReviewPayload{
+		Body: "test", Event: "COMMENT",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCreateReview_EmptySlugDetected(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh repo view --json nameWithOwner --jq .nameWithOwner": "\n",
+		},
+	}
+	client := NewClient(mock)
+
+	_, err := client.CreateReview(context.Background(), 5, &ReviewPayload{
+		Body: "test", Event: "COMMENT",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty slug")
+	}
+}
+
+func TestGetCompareDiff(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh api repos/owner/repo/compare/abc...def --header Accept: application/vnd.github.v3.diff": "diff --git a/f.go b/f.go\n-old\n+new\n",
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	diff, err := client.GetCompareDiff(context.Background(), "abc", "def")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff == "" {
+		t.Error("expected non-empty diff")
+	}
+}
+
+func TestGetCompareDiff_NoSlug(t *testing.T) {
+	client := NewClient(&mockExecutor{})
+
+	_, err := client.GetCompareDiff(context.Background(), "abc", "def")
+	if err == nil {
+		t.Fatal("expected error when no slug")
+	}
+}
+
+func TestUpdatePRBody(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh pr edit 42 --body new description": "",
+		},
+	}
+	client := NewClient(mock)
+
+	err := client.UpdatePRBody(context.Background(), 42, "new description")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUpdatePRBody_WithSlug(t *testing.T) {
+	mock := &mockExecutor{
+		outputs: map[string]string{
+			"gh pr edit -R owner/repo 10 --body updated body": "",
+		},
+	}
+	client := NewClientWithRepo(mock, "owner/repo")
+
+	err := client.UpdatePRBody(context.Background(), 10, "updated body")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUpdatePRBody_Error(t *testing.T) {
+	mock := &mockExecutor{
+		errors: map[string]error{
+			"gh pr edit 42 --body text": fmt.Errorf("auth error"),
+		},
+	}
+	client := NewClient(mock)
+
+	err := client.UpdatePRBody(context.Background(), 42, "text")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
