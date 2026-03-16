@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -21,6 +23,7 @@ import (
 	"github.com/dotbrains/prr/internal/exec"
 	"github.com/dotbrains/prr/internal/gh"
 	gitpkg "github.com/dotbrains/prr/internal/git"
+	"github.com/dotbrains/prr/internal/rules"
 	"github.com/dotbrains/prr/internal/spinner"
 	"github.com/dotbrains/prr/internal/writer"
 )
@@ -144,6 +147,16 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 		}
 	}
 
+	// Load project rules from .prr.yaml.
+	var projectRules []string
+	if pr, _ := rules.LoadFromFile(filepath.Join(repoPath, ".prr.yaml")); pr != nil {
+		projectRules = pr.Rules
+		fmt.Fprintf(cmd.OutOrStdout(), "→ rules:   %d project rules\n", len(projectRules))
+	}
+
+	// Parse focus modes.
+	focusModes := parseFocusModes()
+
 	// Build review input (no PR number, no existing comments)
 	input := &agent.ReviewInput{
 		PRNumber:        0,
@@ -153,6 +166,8 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 		Diff:            rawDiff,
 		Files:           files,
 		CodebaseContext: codebaseCtx,
+		ProjectRules:    projectRules,
+		FocusModes:      focusModes,
 	}
 
 	if flagAll {
@@ -202,6 +217,12 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 	if err != nil {
 		return err
 	}
+
+	// Fetch head SHA for metadata persistence.
+	headSHA, _ := ghClient.GetPRHeadSHA(ctx, prNumber)
+
+	// Resolve repo slug for metadata.
+	prRepoSlug := repoSlug
 
 	fmt.Fprintf(cmd.OutOrStdout(), "→ PR #%d: %s\n", meta.Number, meta.Title)
 
@@ -265,6 +286,23 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 		}
 	}
 
+	// Load project rules.
+	var projectRules []string
+	cwd, _ := os.Getwd()
+	if pr, _ := rules.LoadFromFile(filepath.Join(cwd, ".prr.yaml")); pr != nil {
+		projectRules = pr.Rules
+	} else if repoSlug != "" {
+		// Try loading from remote repo.
+		if pr, _ := rules.LoadFromReader(ctx, ghClient, meta.BaseBranch); pr != nil {
+			projectRules = pr.Rules
+		}
+	}
+	if len(projectRules) > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "→ rules:   %d project rules\n", len(projectRules))
+	}
+
+	focusModes := parseFocusModes()
+
 	// Build review input
 	input := &agent.ReviewInput{
 		PRNumber:               meta.Number,
@@ -278,6 +316,10 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 		ExistingComments:       existingComments,
 		ExistingReviews:        existingReviews,
 		ExistingReviewComments: existingReviewComments,
+		RepoSlug:               prRepoSlug,
+		HeadSHA:                headSHA,
+		ProjectRules:           projectRules,
+		FocusModes:             focusModes,
 	}
 
 	if flagAll {
@@ -324,6 +366,8 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 		MultiAgent: false,
 		BaseBranch: input.BaseBranch,
 		HeadBranch: input.HeadBranch,
+		RepoSlug:   input.RepoSlug,
+		HeadSHA:    input.HeadSHA,
 	}
 
 	reviewDir, err := writer.Write(output, opts)
@@ -410,6 +454,8 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 		PRNumber:   input.PRNumber,
 		BaseBranch: input.BaseBranch,
 		HeadBranch: input.HeadBranch,
+		RepoSlug:   input.RepoSlug,
+		HeadSHA:    input.HeadSHA,
 	})
 	if err != nil {
 		return fmt.Errorf("writing output: %w", err)
@@ -526,6 +572,21 @@ func pathToSafeName(path string) string {
 		name = replaceAll(name, c, "-")
 	}
 	return name + ".md"
+}
+
+// parseFocusModes parses the --focus flag into a slice of mode names.
+func parseFocusModes() []string {
+	if flagFocus == "" {
+		return nil
+	}
+	var modes []string
+	for _, m := range strings.Split(flagFocus, ",") {
+		m = strings.TrimSpace(m)
+		if m != "" {
+			modes = append(modes, m)
+		}
+	}
+	return modes
 }
 
 func replaceAll(s, old, new string) string {

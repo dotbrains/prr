@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, GitPullRequest, GitBranch, Users, SearchCode, Zap } from 'lucide-react';
+import { Bot, GitPullRequest, GitBranch, Users, Send, Crosshair, FileText, HelpCircle, ArrowLeftRight } from 'lucide-react';
 
 export function FeaturesSection() {
   const features = [
@@ -25,14 +25,29 @@ export function FeaturesSection() {
       description: 'Prompt-engineered to write like a senior engineer — direct, specific, no AI-speak. Banned phrases list enforced.',
     },
     {
-      icon: <SearchCode className="w-6 h-6" />,
-      title: 'Codebase Pattern Analysis',
-      description: 'Reads sibling files from the repo to understand established patterns. Flags deviations in error handling, naming, and structure.',
+      icon: <Send className="w-6 h-6" />,
+      title: 'Post to GitHub',
+      description: 'Post reviews directly to GitHub with prr post. Auto-detects REQUEST_CHANGES vs COMMENT based on severity.',
     },
     {
-      icon: <Zap className="w-6 h-6" />,
-      title: 'Multi-Agent Reviews',
-      description: 'Run all agents in parallel with --all. Compare Claude vs GPT reviews side-by-side.',
+      icon: <Crosshair className="w-6 h-6" />,
+      title: 'Focus Modes',
+      description: 'Drill into what matters with --focus security, performance, or testing. Deprioritizes noise outside your focus area.',
+    },
+    {
+      icon: <FileText className="w-6 h-6" />,
+      title: 'PR Descriptions',
+      description: 'Generate clear, structured PR descriptions from the diff with prr describe. Push to GitHub with --update.',
+    },
+    {
+      icon: <HelpCircle className="w-6 h-6" />,
+      title: 'Follow-Up Q&A',
+      description: 'Ask follow-up questions about any review with prr ask. Full review context is loaded automatically.',
+    },
+    {
+      icon: <ArrowLeftRight className="w-6 h-6" />,
+      title: 'Review Diffs',
+      description: 'Compare two review runs with prr diff. See which comments are new, resolved, or changed between iterations.',
     },
   ];
 

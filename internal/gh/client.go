@@ -255,6 +255,98 @@ func (c *Client) ReadFile(ctx context.Context, ref, path string) (string, error)
 	return string(decoded), nil
 }
 
+// GetPRHeadSHA returns the head commit SHA for a PR.
+func (c *Client) GetPRHeadSHA(ctx context.Context, prNumber int) (string, error) {
+	out, err := c.exec.Run(ctx, "gh", c.ghPRArgs("view", strconv.Itoa(prNumber),
+		"--json", "headRefOid", "--jq", ".headRefOid")...)
+	if err != nil {
+		return "", fmt.Errorf("fetching PR #%d head SHA: %w", prNumber, err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// ReviewPayload is the JSON body for creating a GitHub PR review.
+type ReviewPayload struct {
+	CommitID string           `json:"commit_id,omitempty"`
+	Body     string           `json:"body"`
+	Event    string           `json:"event"` // COMMENT, REQUEST_CHANGES, APPROVE
+	Comments []ReviewLineComment `json:"comments"`
+}
+
+// ReviewLineComment is a single inline comment in a review.
+type ReviewLineComment struct {
+	Path      string `json:"path"`
+	Line      int    `json:"line"`
+	Side      string `json:"side"`
+	StartLine int    `json:"start_line,omitempty"`
+	StartSide string `json:"start_side,omitempty"`
+	Body      string `json:"body"`
+}
+
+// CreateReviewResult contains info returned after creating a review.
+type CreateReviewResult struct {
+	ID      int    `json:"id"`
+	HTMLURL string `json:"html_url"`
+}
+
+// CreateReview posts a review with inline comments to a PR.
+func (c *Client) CreateReview(ctx context.Context, prNumber int, payload *ReviewPayload) (*CreateReviewResult, error) {
+	slug := c.repoSlug
+	if slug == "" {
+		slugOut, err := c.exec.Run(ctx, "gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+		if err != nil {
+			return nil, fmt.Errorf("detecting repo: %w", err)
+		}
+		slug = strings.TrimSpace(slugOut)
+		if slug == "" {
+			return nil, fmt.Errorf("could not determine repository")
+		}
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling review payload: %w", err)
+	}
+
+	apiPath := fmt.Sprintf("repos/%s/pulls/%d/reviews", slug, prNumber)
+	out, err := c.exec.RunWithStdin(ctx, string(jsonData),
+		"gh", "api", apiPath, "--method", "POST", "--input", "-")
+	if err != nil {
+		return nil, fmt.Errorf("creating review on PR #%d: %w", prNumber, err)
+	}
+
+	var result CreateReviewResult
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		return nil, fmt.Errorf("parsing review response: %w", err)
+	}
+	return &result, nil
+}
+
+// GetCompareDiff fetches the diff between two commits via the GitHub compare API.
+func (c *Client) GetCompareDiff(ctx context.Context, baseSHA, headSHA string) (string, error) {
+	slug := c.repoSlug
+	if slug == "" {
+		return "", fmt.Errorf("repo slug required for compare diff")
+	}
+
+	apiPath := fmt.Sprintf("repos/%s/compare/%s...%s", slug, baseSHA, headSHA)
+	out, err := c.exec.Run(ctx, "gh", "api", apiPath, "--header", "Accept: application/vnd.github.v3.diff")
+	if err != nil {
+		return "", fmt.Errorf("fetching compare diff: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// UpdatePRBody updates the body/description of a PR.
+func (c *Client) UpdatePRBody(ctx context.Context, prNumber int, body string) error {
+	args := c.ghPRArgs("edit", strconv.Itoa(prNumber), "--body", body)
+	_, err := c.exec.Run(ctx, "gh", args...)
+	if err != nil {
+		return fmt.Errorf("updating PR #%d body: %w", prNumber, err)
+	}
+	return nil
+}
+
 // GetPRReviewComments fetches line-level review comments for a PR.
 func (c *Client) GetPRReviewComments(ctx context.Context, prNumber int) ([]ExistingReviewComment, error) {
 	// Use provided slug or auto-detect

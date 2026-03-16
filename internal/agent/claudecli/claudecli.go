@@ -39,11 +39,22 @@ func New(name string, cfg config.AgentConfig, executor exec.CommandExecutor) (ag
 func (c *ClaudeCLI) Name() string { return c.name }
 
 func (c *ClaudeCLI) Review(ctx context.Context, input *agent.ReviewInput) (*agent.ReviewOutput, error) {
-	systemPrompt := agent.BuildSystemPrompt()
+	systemPrompt := agent.BuildSystemPrompt(input.FocusModes...)
 	userPrompt := agent.BuildUserPrompt(input)
 
-	// Use claude CLI in non-interactive print mode with JSON output.
-	// The user prompt is piped via stdin since diffs can be very long.
+	text, err := c.call(ctx, systemPrompt, userPrompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.ParseReviewJSON(text)
+}
+
+func (c *ClaudeCLI) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return c.call(ctx, systemPrompt, userPrompt)
+}
+
+func (c *ClaudeCLI) call(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	out, err := c.exec.RunWithStdin(ctx, userPrompt,
 		"claude", "-p",
 		"--output-format", "json",
@@ -51,7 +62,7 @@ func (c *ClaudeCLI) Review(ctx context.Context, input *agent.ReviewInput) (*agen
 		"--model", c.model,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("claude CLI failed: %w", err)
+		return "", fmt.Errorf("claude CLI failed: %w", err)
 	}
 
 	// claude -p --output-format json returns a JSON wrapper:
@@ -62,13 +73,13 @@ func (c *ClaudeCLI) Review(ctx context.Context, input *agent.ReviewInput) (*agen
 		IsError bool   `json:"is_error"`
 	}
 	if err := json.Unmarshal([]byte(out), &cliResp); err != nil || cliResp.Type == "" {
-		// Not a claude JSON wrapper — try the raw output as review JSON
-		return agent.ParseReviewJSON(out)
+		// Not a claude JSON wrapper — return raw output
+		return out, nil
 	}
 
 	if cliResp.IsError {
-		return nil, fmt.Errorf("claude CLI error: %s", agent.Truncate(cliResp.Result, 500))
+		return "", fmt.Errorf("claude CLI error: %s", agent.Truncate(cliResp.Result, 500))
 	}
 
-	return agent.ParseReviewJSON(cliResp.Result)
+	return cliResp.Result, nil
 }

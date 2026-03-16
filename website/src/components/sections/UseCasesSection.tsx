@@ -1,6 +1,6 @@
 'use client';
 
-import { GitPullRequest, GitBranch, Users, Eye, Shield, Clock } from 'lucide-react';
+import { GitPullRequest, GitBranch, Send, Eye, Shield, Clock } from 'lucide-react';
 
 export function UseCasesSection() {
   const useCases = [
@@ -15,24 +15,24 @@ export function UseCasesSection() {
       description: 'Review your branch locally before opening a PR. Fix issues before anyone sees them.',
     },
     {
-      icon: <Users className="w-6 h-6" />,
-      title: 'Multi-Agent Comparison',
-      description: 'Run Claude and GPT on the same PR with --all. Compare perspectives and catch different classes of issues.',
+      icon: <Send className="w-6 h-6" />,
+      title: 'Review → Post Workflow',
+      description: 'Review a PR, inspect the output, then post directly to GitHub with prr post. No copy-paste needed.',
     },
     {
       icon: <Eye className="w-6 h-6" />,
       title: 'Self-Review',
-      description: 'Use prr on your own PRs before requesting review. Reduce review rounds and ship faster.',
+      description: 'Use prr on your own PRs before requesting review. Generate a description with prr describe. Reduce review rounds.',
     },
     {
       icon: <Shield className="w-6 h-6" />,
-      title: 'Security Audit',
-      description: 'AI catches SQL injection, XSS, auth bypasses, and other security patterns that are easy to miss in large diffs.',
+      title: 'Focused Security Audit',
+      description: 'Run prr --focus security to zero in on injection, auth bypass, and crypto issues. Suppresses noise from unrelated nits.',
     },
     {
       icon: <Clock className="w-6 h-6" />,
-      title: 'Large PR Triage',
-      description: 'When a PR touches 50+ files, prr gives you a prioritized summary — critical issues first, nits last.',
+      title: 'Incremental Reviews',
+      description: 'Use --since to only review changes since the last run. Track progress between iterations with prr diff.',
     },
   ];
 

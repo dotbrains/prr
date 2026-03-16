@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { CodeBlock } from '@/components/CodeBlock';
 
 export function CodeExamplesSection() {
-  const [activeTab, setActiveTab] = useState<'pr' | 'local' | 'config'>('pr');
+  const [activeTab, setActiveTab] = useState<'pr' | 'local' | 'post' | 'tools' | 'config'>('pr');
 
   const examples = {
     pr: `# Review the current branch's PR
@@ -18,8 +18,8 @@ $ prr
 → 2 critical, 5 suggestions, 3 nits, 1 praise
 → Output: reviews/pr-17509-20250311-143000/
 
-# Review a specific PR
-$ prr 17509 --agent gpt
+# Focus on security and performance
+$ prr 17509 --focus security,performance
 
 # Review any PR by URL (no cloning needed)
 $ prr https://github.com/owner/repo/pull/123`,
@@ -37,6 +37,36 @@ $ prr --base main
 
 # Review a specific repo and branch
 $ prr --repo ../other-project --base develop --head feature/api`,
+    post: `# Post review directly to GitHub
+$ prr post
+→ Posting review for PR #17509...
+✓ Review posted: 2 critical, 5 suggestions, 3 nits
+→ https://github.com/owner/repo/pull/17509#pullrequestreview-123456
+
+# Preview without posting
+$ prr post --dry-run
+→ Would post review for PR #17509 as REQUEST_CHANGES
+→ 10 line comments, body: 2-4 sentence summary
+
+# Generate and push a PR description
+$ prr describe 17509 --update
+→ Generating description for PR #17509...
+✓ PR description updated.`,
+    tools: `# Ask follow-up questions about a review
+$ prr ask "Is the race condition on line 42 exploitable?"
+→ Loading review context for PR #17509...
+
+Yes — two goroutines can both read isExpired as true
+and refresh the token concurrently...
+
+# Compare two review runs
+$ prr diff reviews/pr-17509-run1 reviews/pr-17509-run2
+Review diff: 10 → 8 comments
+
+New comments:
+  + [critical L55] src/handler.go: New nil check issue...
+Resolved comments:
+  - [nit L78] src/auth.go: Renamed variable...`,
     config: `# ~/.config/prr/config.yaml
 default_agent: claude-cli
 
@@ -71,7 +101,9 @@ review:
   const tabs = [
     { key: 'pr' as const, label: 'PR Mode', language: 'bash' },
     { key: 'local' as const, label: 'Local Mode', language: 'bash' },
-    { key: 'config' as const, label: 'Configuration', language: 'yaml' },
+    { key: 'post' as const, label: 'Post & Describe', language: 'bash' },
+    { key: 'tools' as const, label: 'Ask & Diff', language: 'bash' },
+    { key: 'config' as const, label: 'Config', language: 'yaml' },
   ];
 
   return (

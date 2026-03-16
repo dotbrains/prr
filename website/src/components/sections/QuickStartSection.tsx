@@ -62,14 +62,17 @@ tar -xzf /tmp/prr_darwin_arm64.tar.gz -C /usr/local/bin`;
               code={`# Review the current branch's PR
 prr
 
-# Review a specific PR
-prr 17509
+# Focus on security issues
+prr 17509 --focus security
 
-# Review with a specific agent
-prr 17509 --agent gpt
+# Post review to GitHub
+prr post
 
-# Review local branch against main
-prr --base main`}
+# Generate PR description
+prr describe --update
+
+# Ask a follow-up question
+prr ask "Is this thread-safe?"`}
               language="bash"
             />
             <div className="mt-6 bg-prr-amber/10 border border-prr-amber/30 rounded-lg p-4 sm:p-5">

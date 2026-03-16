@@ -278,6 +278,74 @@ $ prr history
   pr-17455-20250309-160000  PR #17455  gpt      1 critical, 2 suggestions
 ```
 
+### `prr post [REVIEW_DIR]`
+
+Post a review to GitHub as a PR review. Reads the most recent review for the current branch's PR, or a specific review directory.
+
+- `--dry-run` — Print the review payload without posting.
+- `--event <type>` — Override the review event (`COMMENT`, `REQUEST_CHANGES`, `APPROVE`). By default, auto-detects: `REQUEST_CHANGES` if any critical comments exist, otherwise `COMMENT`.
+
+```
+$ prr post
+→ Posting review for PR #17509...
+✓ Review posted: 2 critical, 5 suggestions, 3 nits
+→ https://github.com/owner/repo/pull/17509#pullrequestreview-123456
+```
+
+```
+$ prr post --dry-run
+→ Would post review for PR #17509 as REQUEST_CHANGES
+→ 10 line comments, body: 2-4 sentence summary
+```
+
+### `prr describe [PR_NUMBER]`
+
+Generate an AI-written PR description from the diff. If no PR number is given, auto-detects from the current branch.
+
+- `--update` — Push the generated description to GitHub (updates the PR body).
+
+```
+$ prr describe 17509
+→ Generating description for PR #17509...
+
+## Add rate limiting middleware
+
+Adds a token-bucket rate limiter to all API endpoints...
+
+$ prr describe 17509 --update
+→ Generating description for PR #17509...
+✓ PR description updated.
+```
+
+### `prr ask <question> [REVIEW_DIR]`
+
+Ask a follow-up question about a previous review. Loads the review context (summary + all comments) and passes it along with your question to the AI.
+
+```
+$ prr ask "Is the race condition on line 42 exploitable?"
+→ Loading review context for PR #17509...
+
+Yes — two goroutines can both read isExpired as true...
+```
+
+### `prr diff <review-dir-1> <review-dir-2>`
+
+Compare two review directories side by side. Shows new, resolved, and changed comments between two runs.
+
+```
+$ prr diff ~/.local/share/prr/reviews/pr-17509-20250311-143000 ~/.local/share/prr/reviews/pr-17509-20250312-090000
+Review diff: 10 → 8 comments
+
+New comments:
+  + [critical L55] src/handler.go: New nil check issue...
+
+Resolved comments:
+  - [nit L78] src/auth.go: Renamed variable...
+
+Changed comments:
+  ~ [suggestion L42] src/auth.go: "old body" → "new body"
+```
+
 ### `prr clean [--days <n>]`
 
 Remove old review output. Defaults to reviews older than 30 days:
@@ -299,6 +367,8 @@ $ prr clean --days 7
 | `--base` | Base branch to diff against (enables local mode) |
 | `--head` | Head branch (defaults to current branch) |
 | `--no-context` | Disable codebase pattern context for this run |
+| `--focus` | Comma-separated focus modes: `security`, `performance`, `testing` |
+| `--since` | Only review changes since the last review (incremental mode) |
 | `--version` | Print the version and exit |
 | `--help` | Show help for any command |
 
@@ -314,6 +384,15 @@ $ prr clean --days 7
 - `--no-praise` — Skip positive/praise comments
 - `--min-severity` — Minimum severity to include (`critical`, `suggestion`, `nit`)
 - `--no-context` — Disable codebase pattern context for this run
+- `--focus` — Comma-separated focus modes (`security`, `performance`, `testing`)
+- `--since` — Incremental review: only changes since last review
+
+**`prr post`:**
+- `--dry-run` — Print the payload without posting
+- `--event` — Override review event (`COMMENT`, `REQUEST_CHANGES`, `APPROVE`)
+
+**`prr describe`:**
+- `--update` — Push generated description to GitHub
 
 **`prr config init`:**
 - `--force` — Overwrite existing config file
@@ -515,6 +594,10 @@ type Agent interface {
 
     // Review sends a PR diff to the AI and returns structured review output.
     Review(ctx context.Context, input *ReviewInput) (*ReviewOutput, error)
+
+    // Generate sends a system+user prompt and returns raw text.
+    // Used by describe, ask, and other non-review features.
+    Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error)
 }
 ```
 
@@ -542,6 +625,19 @@ type ReviewInput struct {
 
     // Codebase context: sibling files for pattern analysis
     CodebaseContext []CodebaseFile
+
+    // Project-level review rules from .prr.yaml
+    ProjectRules []string
+
+    // Focus modes (security, performance, testing)
+    FocusModes []string
+
+    // Metadata for persistence
+    RepoSlug string
+    HeadSHA  string
+
+    // Incremental review: only review changes since this commit
+    SinceCommit string
 }
 
 type FileDiff struct {
@@ -776,6 +872,12 @@ prr/
 │   ├── root_test.go              # Root command + PR resolution tests
 │   ├── review.go                 # `prr [PR_NUMBER]` — main review command
 │   ├── review_test.go            # Review command tests
+│   ├── post.go                   # `prr post` — post review to GitHub
+│   ├── post_test.go              # Post command tests
+│   ├── describe.go               # `prr describe` — generate PR description
+│   ├── ask.go                    # `prr ask` — follow-up questions
+│   ├── reviewdiff.go             # `prr diff` — compare two reviews
+│   ├── reviewdiff_test.go        # Review diff tests
 │   ├── agents.go                 # `prr agents` — list configured agents
 │   ├── agents_test.go            # Agents command tests
 │   ├── config.go                 # `prr config init` — scaffold config
@@ -822,9 +924,14 @@ prr/
 │   ├── git/                      # Local git CLI wrapper
 │   │   ├── client.go             # Branch detection, diff fetching, repo validation, file listing/reading
 │   │   └── client_test.go        # Client tests (mock exec)
+│   ├── rules/                    # Project-level review rules
+│   │   ├── rules.go              # Load .prr.yaml rules
+│   │   └── rules_test.go         # Rules tests
 │   ├── writer/                   # Output file generation
 │   │   ├── writer.go             # Write ReviewOutput to markdown files
-│   │   └── writer_test.go        # Writer tests
+│   │   ├── writer_test.go        # Writer tests
+│   │   ├── metadata.go           # Review metadata persistence
+│   │   └── metadata_test.go      # Metadata tests
 │   └── exec/                     # Command execution abstraction
 │       └── executor.go           # CommandExecutor interface + RealExecutor
 ├── .github/workflows/
@@ -1071,7 +1178,7 @@ Default: claude
 
 ### 2. Provider-agnostic agent interface
 
-The `Agent` interface is deliberately minimal (one method: `Review`). This makes it trivial to add new providers without touching any other code. The registry pattern means the config file alone controls which agents are available — no feature flags or build tags needed.
+The `Agent` interface is minimal (two methods: `Review` and `Generate`). This makes it trivial to add new providers without touching any other code.
 
 ### 3. Human-like output via prompt engineering, not post-processing
 
@@ -1087,7 +1194,6 @@ The AI is instructed to return comments in a structured format (JSON) which `prr
 
 ## Non-Goals
 
-- **Direct GitHub comment posting.** `prr` is intentionally local-only. A future `prr post` command may be added, but it is not in scope for v1.
 - **Real-time / streaming reviews.** The review runs to completion and writes output. No streaming UI.
 - **IDE integration.** `prr` is a CLI tool. IDE plugins are out of scope.
 - **Fine-tuning or training.** `prr` uses off-the-shelf models via their APIs. No custom model training.

@@ -54,9 +54,22 @@ func New(name string, cfg config.AgentConfig) (agent.Agent, error) {
 func (c *Claude) Name() string { return c.name }
 
 func (c *Claude) Review(ctx context.Context, input *agent.ReviewInput) (*agent.ReviewOutput, error) {
-	systemPrompt := agent.BuildSystemPrompt()
+	systemPrompt := agent.BuildSystemPrompt(input.FocusModes...)
 	userPrompt := agent.BuildUserPrompt(input)
 
+	text, err := c.call(ctx, systemPrompt, userPrompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.ParseReviewJSON(text)
+}
+
+func (c *Claude) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return c.call(ctx, systemPrompt, userPrompt)
+}
+
+func (c *Claude) call(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	body := messagesRequest{
 		Model:     c.model,
 		MaxTokens: c.maxTokens,
@@ -68,12 +81,12 @@ func (c *Claude) Review(ctx context.Context, input *agent.ReviewInput) (*agent.R
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling request: %w", err)
+		return "", fmt.Errorf("marshaling request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/v1/messages", bytes.NewReader(jsonBody))
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return "", fmt.Errorf("creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -82,30 +95,30 @@ func (c *Claude) Review(ctx context.Context, input *agent.ReviewInput) (*agent.R
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("sending request: %w", err)
+		return "", fmt.Errorf("sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
+		return "", fmt.Errorf("reading response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anthropic API error (status %d): %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("anthropic API error (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
 	var messagesResp messagesResponse
 	if err := json.Unmarshal(respBody, &messagesResp); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+		return "", fmt.Errorf("parsing response: %w", err)
 	}
 
 	text := extractText(messagesResp)
 	if text == "" {
-		return nil, fmt.Errorf("no text content in response")
+		return "", fmt.Errorf("no text content in response")
 	}
 
-	return agent.ParseReviewJSON(text)
+	return text, nil
 }
 
 // SetBaseURL overrides the API base URL (for testing).

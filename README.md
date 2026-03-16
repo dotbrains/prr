@@ -42,6 +42,22 @@ prr --base main
 # Review a specific repo and branch
 prr --repo /path/to/repo --base main --head feature-branch
 
+# Focus review on specific areas
+prr 17509 --focus security,performance
+
+# Post review directly to GitHub
+prr post
+
+# Generate a PR description
+prr describe 17509
+prr describe 17509 --update   # push to GitHub
+
+# Ask follow-up questions about a review
+prr ask "Is this race condition exploitable?"
+
+# Compare two review runs
+prr diff ~/.local/share/prr/reviews/pr-123-run1 ~/.local/share/prr/reviews/pr-123-run2
+
 # Skip codebase pattern analysis
 prr 17509 --no-context
 ```
@@ -140,6 +156,10 @@ See [SPEC.md](SPEC.md) for the full config format.
 | `prr --base <branch>` | Review current branch against a base branch (local mode) |
 | `prr --repo <path> --base <branch>` | Review a specific local repo |
 | `prr agents` | List configured agents and their status |
+| `prr post` | Post a review to GitHub as a PR review |
+| `prr describe [PR_NUMBER]` | Generate an AI-written PR description |
+| `prr ask <question>` | Ask follow-up questions about a review |
+| `prr diff <dir1> <dir2>` | Compare two review outputs |
 | `prr config init` | Create default config file |
 | `prr history` | List past reviews |
 | `prr clean` | Remove old review output |

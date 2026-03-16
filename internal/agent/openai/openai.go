@@ -54,9 +54,22 @@ func New(name string, cfg config.AgentConfig) (agent.Agent, error) {
 func (g *GPT) Name() string { return g.name }
 
 func (g *GPT) Review(ctx context.Context, input *agent.ReviewInput) (*agent.ReviewOutput, error) {
-	systemPrompt := agent.BuildSystemPrompt()
+	systemPrompt := agent.BuildSystemPrompt(input.FocusModes...)
 	userPrompt := agent.BuildUserPrompt(input)
 
+	text, err := g.call(ctx, systemPrompt, userPrompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.ParseReviewJSON(text)
+}
+
+func (g *GPT) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return g.call(ctx, systemPrompt, userPrompt)
+}
+
+func (g *GPT) call(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	body := chatRequest{
 		Model: g.model,
 		Messages: []chatMessage{
@@ -68,12 +81,12 @@ func (g *GPT) Review(ctx context.Context, input *agent.ReviewInput) (*agent.Revi
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("marshaling request: %w", err)
+		return "", fmt.Errorf("marshaling request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", g.baseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return "", fmt.Errorf("creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -81,30 +94,30 @@ func (g *GPT) Review(ctx context.Context, input *agent.ReviewInput) (*agent.Revi
 
 	resp, err := g.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("sending request: %w", err)
+		return "", fmt.Errorf("sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
+		return "", fmt.Errorf("reading response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("openai API error (status %d): %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("openai API error (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
 	var chatResp chatResponse
 	if err := json.Unmarshal(respBody, &chatResp); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+		return "", fmt.Errorf("parsing response: %w", err)
 	}
 
 	text := extractText(chatResp)
 	if text == "" {
-		return nil, fmt.Errorf("no text content in response")
+		return "", fmt.Errorf("no text content in response")
 	}
 
-	return agent.ParseReviewJSON(text)
+	return text, nil
 }
 
 // SetBaseURL overrides the API base URL (for testing).

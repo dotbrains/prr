@@ -19,8 +19,8 @@ export function HowItWorksSection() {
     {
       icon: <FileText className="w-8 h-8" />,
       step: '3',
-      title: 'Copy-Paste to GitHub',
-      description: 'Review output is organized as one markdown file per source file, with comments by line number and severity. Paste directly into GitHub\'s review interface.',
+      title: 'Post or Copy-Paste',
+      description: 'Post directly to GitHub with prr post, or copy-paste from the structured markdown output. Comments are organized by file and severity.',
     },
   ];
 

@@ -13,6 +13,10 @@ type Agent interface {
 
 	// Review sends a PR diff to the AI and returns structured review output.
 	Review(ctx context.Context, input *ReviewInput) (*ReviewOutput, error)
+
+	// Generate sends a system+user prompt and returns the raw text response.
+	// Used by describe, ask, and other non-review features.
+	Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error)
 }
 
 // CodebaseFile represents an existing file from the repo used as pattern context.
@@ -38,6 +42,19 @@ type ReviewInput struct {
 
 	// Codebase context: sibling files for pattern analysis
 	CodebaseContext []CodebaseFile
+
+	// Project-level review rules from .prr.yaml
+	ProjectRules []string
+
+	// Focus modes (security, performance, testing)
+	FocusModes []string
+
+	// Metadata for persistence
+	RepoSlug string
+	HeadSHA  string
+
+	// Incremental review: only review changes since this commit
+	SinceCommit string
 }
 
 // FileDiff represents a single file's diff within the PR.

@@ -197,3 +197,6 @@ func (m *mockAgent) Name() string { return m.name }
 func (m *mockAgent) Review(_ context.Context, _ *ReviewInput) (*ReviewOutput, error) {
 	return &ReviewOutput{Summary: "mock review"}, nil
 }
+func (m *mockAgent) Generate(_ context.Context, _, _ string) (string, error) {
+	return "mock generate", nil
+}

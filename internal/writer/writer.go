@@ -20,6 +20,8 @@ type WriteOptions struct {
 	MultiAgent bool   // if true, nest under agent name subdirectory
 	BaseBranch string // for local reviews
 	HeadBranch string // for local reviews
+	RepoSlug   string // "owner/repo" for GitHub operations
+	HeadSHA    string // commit SHA at time of review
 }
 
 // Write writes a ReviewOutput to markdown files on disk.
@@ -52,6 +54,21 @@ func Write(output *agent.ReviewOutput, opts WriteOptions) (string, error) {
 		return "", err
 	}
 
+	// Write structured metadata for prr post / ask / diff.
+	meta := &ReviewMetadata{
+		PRNumber:  opts.PRNumber,
+		RepoSlug:  opts.RepoSlug,
+		HeadSHA:   opts.HeadSHA,
+		AgentName: opts.AgentName,
+		Model:     opts.Model,
+		CreatedAt: metadataTimestamp(),
+		Comments:  output.Comments,
+		Summary:   output.Summary,
+	}
+	if err := WriteMetadata(reviewDir, meta); err != nil {
+		return "", err
+	}
+
 	return reviewDir, nil
 }
 
@@ -61,6 +78,8 @@ type WriteMultiOptions struct {
 	PRNumber   int
 	BaseBranch string
 	HeadBranch string
+	RepoSlug   string
+	HeadSHA    string
 }
 
 // WriteMulti writes multiple agent outputs to the same review directory.
@@ -94,6 +113,21 @@ func WriteMulti(outputs map[string]*agentOutput, opts WriteMultiOptions) (string
 		}
 
 		if err := writeCommentsBySeverity(agentDir, ao.Output.Comments); err != nil {
+			return "", err
+		}
+
+		// Write per-agent metadata.
+		meta := &ReviewMetadata{
+			PRNumber:  opts.PRNumber,
+			RepoSlug:  opts.RepoSlug,
+			HeadSHA:   opts.HeadSHA,
+			AgentName: agentName,
+			Model:     ao.Model,
+			CreatedAt: metadataTimestamp(),
+			Comments:  ao.Output.Comments,
+			Summary:   ao.Output.Summary,
+		}
+		if err := WriteMetadata(agentDir, meta); err != nil {
 			return "", err
 		}
 	}

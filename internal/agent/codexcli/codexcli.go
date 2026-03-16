@@ -41,16 +41,25 @@ func New(name string, cfg config.AgentConfig, executor exec.CommandExecutor) (ag
 func (c *CodexCLI) Name() string { return c.name }
 
 func (c *CodexCLI) Review(ctx context.Context, input *agent.ReviewInput) (*agent.ReviewOutput, error) {
-	systemPrompt := agent.BuildSystemPrompt()
+	systemPrompt := agent.BuildSystemPrompt(input.FocusModes...)
 	userPrompt := agent.BuildUserPrompt(input)
 
+	text, err := c.call(ctx, systemPrompt, userPrompt)
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.ParseReviewJSON(text)
+}
+
+func (c *CodexCLI) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return c.call(ctx, systemPrompt, userPrompt)
+}
+
+func (c *CodexCLI) call(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	// Codex CLI doesn't have a --system-prompt flag, so we embed it in the user prompt.
 	combinedPrompt := fmt.Sprintf("SYSTEM INSTRUCTIONS:\n%s\n\nUSER REQUEST:\n%s", systemPrompt, userPrompt)
 
-	// Use codex exec in non-interactive mode with JSONL output.
-	// --approval-mode suggest = read-only, no file changes
-	// --skip-git-repo-check = works even if not in a git repo
-	// Prompt is passed via stdin using "-"
 	out, err := c.exec.RunWithStdin(ctx, combinedPrompt,
 		"codex", "exec",
 		"--json",
@@ -59,17 +68,15 @@ func (c *CodexCLI) Review(ctx context.Context, input *agent.ReviewInput) (*agent
 		"-",
 	)
 	if err != nil {
-		return nil, fmt.Errorf("codex CLI failed: %w", err)
+		return "", fmt.Errorf("codex CLI failed: %w", err)
 	}
 
-	// Parse JSONL output — each line is a JSON event.
-	// Look for the final message content from the assistant.
 	text, err := extractCodexResult(out)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return agent.ParseReviewJSON(text)
+	return text, nil
 }
 
 // extractCodexResult parses JSONL events from codex exec --json and extracts

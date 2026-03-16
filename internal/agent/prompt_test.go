@@ -225,6 +225,126 @@ func TestBuildUserPrompt_CodebaseContextBeforeExistingComments(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPrompt_WithFocusModes(t *testing.T) {
+	prompt := BuildSystemPrompt("security", "performance")
+	if !strings.Contains(prompt, "FOCUS MODE ACTIVE") {
+		t.Error("prompt should contain FOCUS MODE ACTIVE section")
+	}
+	if !strings.Contains(prompt, "SECURITY") {
+		t.Error("prompt should contain SECURITY focus")
+	}
+	if !strings.Contains(prompt, "PERFORMANCE") {
+		t.Error("prompt should contain PERFORMANCE focus")
+	}
+	if !strings.Contains(prompt, "Deprioritize comments outside these focus areas") {
+		t.Error("prompt should contain deprioritize instruction")
+	}
+}
+
+func TestBuildSystemPrompt_UnknownFocusModeIgnored(t *testing.T) {
+	prompt := BuildSystemPrompt("nonexistent")
+	if strings.Contains(prompt, "FOCUS MODE ACTIVE") {
+		t.Error("unknown focus mode should not produce a FOCUS MODE section")
+	}
+}
+
+func TestBuildSystemPrompt_NoFocusModes(t *testing.T) {
+	prompt := BuildSystemPrompt()
+	if strings.Contains(prompt, "FOCUS MODE ACTIVE") {
+		t.Error("prompt without focus modes should not contain FOCUS MODE section")
+	}
+}
+
+func TestBuildUserPrompt_WithProjectRules(t *testing.T) {
+	input := &ReviewInput{
+		PRNumber:   1,
+		PRTitle:    "Test",
+		BaseBranch: "main",
+		HeadBranch: "feat",
+		Diff:       "diff",
+		ProjectRules: []string{
+			"All errors must be wrapped",
+			"No SQL outside repository layer",
+		},
+	}
+
+	prompt := BuildUserPrompt(input)
+	if !strings.Contains(prompt, "PROJECT RULES") {
+		t.Error("prompt should contain PROJECT RULES section")
+	}
+	if !strings.Contains(prompt, "All errors must be wrapped") {
+		t.Error("prompt should contain first rule")
+	}
+	if !strings.Contains(prompt, "No SQL outside repository layer") {
+		t.Error("prompt should contain second rule")
+	}
+}
+
+func TestBuildUserPrompt_NoProjectRules(t *testing.T) {
+	input := &ReviewInput{
+		PRNumber:   1,
+		PRTitle:    "Test",
+		BaseBranch: "main",
+		HeadBranch: "feat",
+		Diff:       "diff",
+	}
+
+	prompt := BuildUserPrompt(input)
+	if strings.Contains(prompt, "PROJECT RULES") {
+		t.Error("prompt should not contain PROJECT RULES when none provided")
+	}
+}
+
+func TestBuildDescribeSystemPrompt(t *testing.T) {
+	prompt := BuildDescribeSystemPrompt()
+	if !strings.Contains(prompt, "pull request description") {
+		t.Error("describe system prompt should mention PR description")
+	}
+	if !strings.Contains(prompt, "RESPONSE FORMAT") {
+		t.Error("describe system prompt should have response format section")
+	}
+}
+
+func TestBuildDescribeUserPrompt(t *testing.T) {
+	prompt := BuildDescribeUserPrompt("Add auth", "old desc", "diff content", nil)
+	if !strings.Contains(prompt, "Add auth") {
+		t.Error("describe user prompt should contain PR title")
+	}
+	if !strings.Contains(prompt, "old desc") {
+		t.Error("describe user prompt should contain current body")
+	}
+	if !strings.Contains(prompt, "diff content") {
+		t.Error("describe user prompt should contain diff")
+	}
+}
+
+func TestBuildDescribeUserPrompt_WithFiles(t *testing.T) {
+	files := []FileDiff{
+		{Path: "main.go", Status: "modified", Diff: "@@ ..."},
+	}
+	prompt := BuildDescribeUserPrompt("Fix", "", "", files)
+	if !strings.Contains(prompt, "main.go") {
+		t.Error("describe user prompt should contain file path when files provided")
+	}
+}
+
+func TestBuildAskSystemPrompt(t *testing.T) {
+	prompt := BuildAskSystemPrompt()
+	if !strings.Contains(prompt, "answering questions") {
+		t.Error("ask system prompt should mention answering questions")
+	}
+}
+
+func TestBuildAskUserPrompt(t *testing.T) {
+	prompt := BuildAskUserPrompt("review context here", "what about the race condition?")
+	if !strings.Contains(prompt, "review context here") {
+		t.Error("ask user prompt should contain review context")
+	}
+	if !strings.Contains(prompt, "what about the race condition?") {
+		t.Error("ask user prompt should contain question")
+	}
+}
+
 func TestBuildSystemPrompt_HumanLikeWritingGuidance(t *testing.T) {
 	prompt := BuildSystemPrompt()
 
