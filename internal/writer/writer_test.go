@@ -356,6 +356,137 @@ func TestListReviewDirs_NonExistent(t *testing.T) {
 	}
 }
 
+func TestVerificationStats_NoVerification(t *testing.T) {
+	comments := []agent.ReviewComment{
+		{Severity: "critical", Body: "bug"},
+	}
+	got := verificationStats(comments)
+	if got != "" {
+		t.Errorf("expected empty string, got %q", got)
+	}
+}
+
+func TestVerificationStats_Mixed(t *testing.T) {
+	comments := []agent.ReviewComment{
+		{Severity: "critical", Verification: &agent.VerificationResult{Verdict: "verified"}},
+		{Severity: "nit", Verification: &agent.VerificationResult{Verdict: "inaccurate", Reason: "wrong"}},
+		{Severity: "suggestion", Verification: &agent.VerificationResult{Verdict: "uncertain"}},
+	}
+	got := verificationStats(comments)
+	if !strings.Contains(got, "1/3 verified") {
+		t.Errorf("expected '1/3 verified', got %q", got)
+	}
+	if !strings.Contains(got, "1 inaccurate") {
+		t.Errorf("expected '1 inaccurate', got %q", got)
+	}
+	if !strings.Contains(got, "1 uncertain") {
+		t.Errorf("expected '1 uncertain', got %q", got)
+	}
+}
+
+func TestVerificationStats_AllVerified(t *testing.T) {
+	comments := []agent.ReviewComment{
+		{Severity: "critical", Verification: &agent.VerificationResult{Verdict: "verified"}},
+		{Severity: "nit", Verification: &agent.VerificationResult{Verdict: "verified"}},
+	}
+	got := verificationStats(comments)
+	if !strings.Contains(got, "2/2 verified") {
+		t.Errorf("expected '2/2 verified', got %q", got)
+	}
+	// Should NOT contain inaccurate or uncertain
+	if strings.Contains(got, "inaccurate") || strings.Contains(got, "uncertain") {
+		t.Errorf("should not mention inaccurate or uncertain when all verified: %q", got)
+	}
+}
+
+func TestWriteFileComments_WithVerification(t *testing.T) {
+	dir := t.TempDir()
+
+	comments := []agent.ReviewComment{
+		{
+			File: "main.go", StartLine: 10, EndLine: 10, Severity: "critical",
+			Body:         "Bug here.",
+			Verification: &agent.VerificationResult{Verdict: "inaccurate", Reason: "Variable exists on line 8."},
+		},
+		{
+			File: "main.go", StartLine: 20, EndLine: 20, Severity: "critical",
+			Body:         "Another issue.",
+			Verification: &agent.VerificationResult{Verdict: "uncertain", Reason: "Cannot confirm."},
+		},
+		{
+			File: "main.go", StartLine: 30, EndLine: 30, Severity: "critical",
+			Body:         "Verified issue.",
+			Verification: &agent.VerificationResult{Verdict: "verified", Reason: "Correct."},
+		},
+	}
+
+	if err := writeFileComments(dir, "main.go", comments); err != nil {
+		t.Fatalf("writeFileComments failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(dir, "main-go.md"))
+	if err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
+	s := string(content)
+
+	// Inaccurate annotation should be present.
+	if !strings.Contains(s, "Inaccurate") {
+		t.Error("expected inaccurate annotation")
+	}
+	if !strings.Contains(s, "Variable exists on line 8.") {
+		t.Error("expected inaccurate reason")
+	}
+
+	// Uncertain annotation should be present.
+	if !strings.Contains(s, "Unverified") {
+		t.Error("expected uncertain annotation")
+	}
+
+	// Verified comments should NOT have annotations.
+	if strings.Contains(s, "Verified:") {
+		t.Error("verified comments should not have annotations")
+	}
+}
+
+func TestWrite_WithVerificationSummary(t *testing.T) {
+	dir := t.TempDir()
+
+	output := &agent.ReviewOutput{
+		Summary: "Review with verification.",
+		Comments: []agent.ReviewComment{
+			{
+				File: "main.go", StartLine: 10, EndLine: 10, Severity: "critical",
+				Body:         "Bug.",
+				Verification: &agent.VerificationResult{Verdict: "verified"},
+			},
+			{
+				File: "main.go", StartLine: 20, EndLine: 20, Severity: "nit",
+				Body:         "Style.",
+				Verification: &agent.VerificationResult{Verdict: "inaccurate", Reason: "wrong"},
+			},
+		},
+	}
+
+	reviewDir, err := Write(output, WriteOptions{
+		BaseDir:   dir,
+		PRNumber:  99,
+		AgentName: "claude",
+		Model:     "opus",
+	})
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	summary, _ := os.ReadFile(filepath.Join(reviewDir, "summary.md"))
+	if !strings.Contains(string(summary), "Verification") {
+		t.Error("summary should contain Verification section")
+	}
+	if !strings.Contains(string(summary), "1/2 verified") {
+		t.Error("summary should contain verification stats")
+	}
+}
+
 func TestCleanOlderThan(t *testing.T) {
 	dir := t.TempDir()
 

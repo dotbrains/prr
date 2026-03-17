@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/dotbrains/prr/internal/agent"
+	"github.com/dotbrains/prr/internal/config"
 )
 
 var allSeverities = []string{"critical", "suggestion", "nit", "praise"}
@@ -356,6 +357,99 @@ func TestParseFocusModes(t *testing.T) {
 	}
 }
 
+
+func TestShouldVerify(t *testing.T) {
+	// Save and restore.
+	oldVerify := flagVerify
+	defer func() { flagVerify = oldVerify }()
+
+	cfg := &config.Config{}
+
+	// Neither flag nor config.
+	flagVerify = false
+	cfg.Review.Verify = false
+	if shouldVerify(cfg) {
+		t.Error("expected false when neither flag nor config is set")
+	}
+
+	// Flag only.
+	flagVerify = true
+	if !shouldVerify(cfg) {
+		t.Error("expected true when --verify flag is set")
+	}
+
+	// Config only.
+	flagVerify = false
+	cfg.Review.Verify = true
+	if !shouldVerify(cfg) {
+		t.Error("expected true when config.review.verify is true")
+	}
+}
+
+func TestResolveVerifyAction(t *testing.T) {
+	oldAction := flagVerifyAction
+	defer func() { flagVerifyAction = oldAction }()
+
+	// Default when nothing set.
+	flagVerifyAction = ""
+	cfg := &config.Config{}
+	if got := resolveVerifyAction(cfg); got != "annotate" {
+		t.Errorf("expected 'annotate' default, got %q", got)
+	}
+
+	// Config override.
+	cfg.Review.VerifyAction = "drop"
+	if got := resolveVerifyAction(cfg); got != "drop" {
+		t.Errorf("expected 'drop' from config, got %q", got)
+	}
+
+	// Flag takes precedence.
+	flagVerifyAction = "annotate"
+	if got := resolveVerifyAction(cfg); got != "annotate" {
+		t.Errorf("expected 'annotate' from flag, got %q", got)
+	}
+}
+
+func TestVerifyStatsFromComments(t *testing.T) {
+	comments := []agent.ReviewComment{
+		{Severity: "critical", Verification: &agent.VerificationResult{Verdict: "verified"}},
+		{Severity: "nit", Verification: &agent.VerificationResult{Verdict: "inaccurate"}},
+		{Severity: "suggestion", Verification: &agent.VerificationResult{Verdict: "uncertain"}},
+		{Severity: "praise"}, // nil verification
+	}
+
+	stats := verifyStatsFromComments(comments)
+	if stats.Total != 4 {
+		t.Errorf("expected total 4, got %d", stats.Total)
+	}
+	if stats.Verified != 1 {
+		t.Errorf("expected 1 verified, got %d", stats.Verified)
+	}
+	if stats.Inaccurate != 1 {
+		t.Errorf("expected 1 inaccurate, got %d", stats.Inaccurate)
+	}
+	if stats.Uncertain != 1 {
+		t.Errorf("expected 1 uncertain, got %d", stats.Uncertain)
+	}
+}
+
+func TestVerifyStatsFromComments_Empty(t *testing.T) {
+	stats := verifyStatsFromComments(nil)
+	if stats.Total != 0 {
+		t.Errorf("expected total 0, got %d", stats.Total)
+	}
+}
+
+func TestVerifyStatsFromComments_AllVerified(t *testing.T) {
+	comments := []agent.ReviewComment{
+		{Severity: "critical", Verification: &agent.VerificationResult{Verdict: "verified"}},
+		{Severity: "nit", Verification: &agent.VerificationResult{Verdict: "verified"}},
+	}
+	stats := verifyStatsFromComments(comments)
+	if stats.Verified != 2 || stats.Inaccurate != 0 || stats.Uncertain != 0 {
+		t.Errorf("unexpected stats: %+v", stats)
+	}
+}
 
 func TestReplaceAll(t *testing.T) {
 	tests := []struct {

@@ -300,6 +300,60 @@ func TestDefaultDataDir_Fallback(t *testing.T) {
 	}
 }
 
+func TestLoadFrom_VerifyFields(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	yamlContent := `default_agent: claude-cli
+review:
+  verify: true
+  verify_agent: gpt-api
+  verify_action: drop
+`
+	if err := os.WriteFile(path, []byte(yamlContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadFrom(path)
+	if err != nil {
+		t.Fatalf("LoadFrom failed: %v", err)
+	}
+
+	if !cfg.Review.Verify {
+		t.Error("expected review.verify to be true")
+	}
+	if cfg.Review.VerifyAgent != "gpt-api" {
+		t.Errorf("expected verify_agent 'gpt-api', got %q", cfg.Review.VerifyAgent)
+	}
+	if cfg.Review.VerifyAction != "drop" {
+		t.Errorf("expected verify_action 'drop', got %q", cfg.Review.VerifyAction)
+	}
+}
+
+func TestLoadFrom_VerifyDefaults(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	if err := os.WriteFile(path, []byte("default_agent: claude-cli\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadFrom(path)
+	if err != nil {
+		t.Fatalf("LoadFrom failed: %v", err)
+	}
+
+	if cfg.Review.Verify {
+		t.Error("expected verify to default to false")
+	}
+	if cfg.Review.VerifyAgent != "" {
+		t.Errorf("expected empty verify_agent, got %q", cfg.Review.VerifyAgent)
+	}
+	if cfg.Review.VerifyAction != "" {
+		t.Errorf("expected empty verify_action, got %q", cfg.Review.VerifyAction)
+	}
+}
+
 func TestCLIProviders(t *testing.T) {
 	if !CLIProviders["claude-cli"] {
 		t.Error("expected claude-cli in CLIProviders")
