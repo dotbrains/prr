@@ -25,6 +25,7 @@ import (
 	gitpkg "github.com/dotbrains/prr/internal/git"
 	"github.com/dotbrains/prr/internal/rules"
 	"github.com/dotbrains/prr/internal/spinner"
+	"github.com/dotbrains/prr/internal/verify"
 	"github.com/dotbrains/prr/internal/writer"
 )
 
@@ -354,6 +355,26 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 		return fmt.Errorf("review failed: %w", err)
 	}
 
+	// Verify comments if enabled.
+	if shouldVerify(cfg) {
+		verifyAgent, err := resolveVerifyAgent(a, cfg)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "⚠ Could not create verify agent: %v\n", err)
+		} else {
+			vsp := spinner.New(cmd.OutOrStdout(), "→ Verifying comments...")
+			vsp.Start()
+			fileDiffs := verify.FileDiffsFromInput(input.Files)
+			v := verify.NewVerifier(verifyAgent)
+			output.Comments = v.VerifyAll(ctx, output.Comments, fileDiffs)
+			vsp.Stop()
+
+			action := resolveVerifyAction(cfg)
+			output.Comments, _ = verify.ApplyVerification(output.Comments, action)
+			vStats := verifyStatsFromComments(output.Comments)
+			fmt.Fprintf(cmd.OutOrStdout(), "→ verified: %s\n", vStats)
+		}
+	}
+
 	// Apply filters
 	output.Comments = filterComments(output.Comments, filter)
 
@@ -444,6 +465,20 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 		if r.output.Truncated {
 			fmt.Fprintf(cmd.ErrOrStderr(), "⚠ Agent %s response was truncated — some comments may be missing.\n", r.name)
 		}
+		// Verify comments if enabled.
+		if shouldVerify(cfg) {
+			verifyAgent, verr := resolveVerifyAgent(nil, cfg)
+			if verr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "⚠ Could not create verify agent for %s: %v\n", r.name, verr)
+			} else {
+				fileDiffs := verify.FileDiffsFromInput(input.Files)
+				v := verify.NewVerifier(verifyAgent)
+				r.output.Comments = v.VerifyAll(ctx, r.output.Comments, fileDiffs)
+				action := resolveVerifyAction(cfg)
+				r.output.Comments, _ = verify.ApplyVerification(r.output.Comments, action)
+			}
+		}
+
 		r.output.Comments = filterComments(r.output.Comments, filter)
 		outputs[r.name] = &writer.AgentOutput{
 			Output: r.output,
@@ -607,4 +642,57 @@ func replaceAll(s, old, new string) string {
 		}
 	}
 	return result
+}
+
+// shouldVerify returns true if verification is enabled via flag or config.
+func shouldVerify(cfg *config.Config) bool {
+	return flagVerify || cfg.Review.Verify
+}
+
+// resolveVerifyAgent returns the agent to use for verification.
+// If --verify-agent or config.review.verify_agent is set, creates that agent.
+// Otherwise falls back to the provided review agent (if non-nil) or the default.
+func resolveVerifyAgent(reviewAgent agent.Agent, cfg *config.Config) (agent.Agent, error) {
+	name := flagVerifyAgent
+	if name == "" {
+		name = cfg.Review.VerifyAgent
+	}
+	if name == "" {
+		if reviewAgent != nil {
+			return reviewAgent, nil
+		}
+		name = cfg.DefaultAgent
+	}
+	return agent.NewAgentFromConfig(name, cfg)
+}
+
+// resolveVerifyAction returns the action to take for inaccurate comments.
+func resolveVerifyAction(cfg *config.Config) string {
+	if flagVerifyAction != "" {
+		return flagVerifyAction
+	}
+	if cfg.Review.VerifyAction != "" {
+		return cfg.Review.VerifyAction
+	}
+	return "annotate"
+}
+
+// verifyStatsFromComments computes verification stats from already-processed comments.
+func verifyStatsFromComments(comments []agent.ReviewComment) verify.VerifyStats {
+	var stats verify.VerifyStats
+	stats.Total = len(comments)
+	for _, c := range comments {
+		if c.Verification == nil {
+			continue
+		}
+		switch c.Verification.Verdict {
+		case "verified":
+			stats.Verified++
+		case "inaccurate":
+			stats.Inaccurate++
+		case "uncertain":
+			stats.Uncertain++
+		}
+	}
+	return stats
 }

@@ -59,6 +59,9 @@ review:
   max_diff_lines: 10000
   codebase_context: true
   max_context_lines: 2000
+  verify: false
+  verify_agent: ""         # empty = use same agent as review
+  verify_action: annotate  # "annotate" or "drop"
   ignore_patterns:
     - "*.lock"
     - "go.sum"
@@ -134,8 +137,9 @@ Steps:
 6. Validates diff size against `max_diff_lines` (splits into batches if exceeded).
 7. Sends diff + metadata + existing comments to the AI agent with the review system prompt.
 8. Parses the structured response into review comments.
-9. Writes output to `~/.local/share/prr/reviews/pr-<number>-<timestamp>/`.
-10. Prints a summary to stdout.
+9. If `--verify` is enabled, runs a secondary AI pass on each comment to fact-check it (see **Comment Verification**).
+10. Writes output to `~/.local/share/prr/reviews/pr-<number>-<timestamp>/`.
+11. Prints a summary to stdout.
 
 ### Codebase Pattern Context
 
@@ -183,8 +187,9 @@ Steps:
 7. Validates diff size against `max_diff_lines`.
 8. Sends diff + branch metadata to the AI agent (no existing comments — local mode has no PR context).
 9. Parses the structured response into review comments.
-10. Writes output to `~/.local/share/prr/reviews/review-<base>-vs-<head>-<timestamp>/`.
-11. Prints a summary to stdout.
+10. If `--verify` is enabled, runs a secondary AI pass on each comment to fact-check it.
+11. Writes output to `~/.local/share/prr/reviews/review-<base>-vs-<head>-<timestamp>/`.
+12. Prints a summary to stdout.
 
 ```
 $ prr --base main
@@ -386,6 +391,9 @@ $ prr clean --days 7
 - `--no-context` — Disable codebase pattern context for this run
 - `--focus` — Comma-separated focus modes (`security`, `performance`, `testing`)
 - `--since` — Incremental review: only changes since last review
+- `--verify` — Verify each comment's accuracy with a secondary AI pass
+- `--verify-agent` — Agent to use for verification (defaults to review agent)
+- `--verify-action` — Action for inaccurate comments: `annotate` (default) or `drop`
 
 **`prr post`:**
 - `--dry-run` — Print the payload without posting
@@ -581,6 +589,59 @@ The system prompt instructs the AI to:
 
 Comment fetching is non-fatal. If `gh` fails to fetch comments (e.g., auth issues, API rate limits), a warning is printed to stderr and the review proceeds without existing context.
 
+## Comment Verification
+
+When `--verify` is passed (or `review.verify: true` in config), `prr` runs a secondary AI pass on each review comment to fact-check it against the actual code diff. This catches hallucinations — wrong line numbers, nonexistent variable names, inaccurate behavioral claims, and invalid suggested fixes.
+
+### How it works
+
+1. After the review agent returns comments, `prr` creates a `Verifier` backed by an AI agent (the same review agent by default, or a different one via `--verify-agent`).
+2. Each comment is sent to the verification agent concurrently (up to 5 in parallel) along with the relevant file diff.
+3. The verification prompt asks the agent to check:
+   - Do the referenced line numbers exist in the diff?
+   - Are variable/function names mentioned in the comment present in the code?
+   - Is the behavioral claim accurate given the code?
+   - Is any suggested fix syntactically/logically valid?
+4. The agent responds with a verdict: `"verified"`, `"inaccurate"`, or `"uncertain"`, plus a brief reason.
+5. Results are applied based on the action policy:
+   - `annotate` (default) — All comments are kept. Inaccurate/uncertain comments are annotated in the output.
+   - `drop` — Inaccurate comments are removed from the output entirely.
+
+### Output
+
+When verification is active, `summary.md` includes a `## Verification` section with stats:
+
+```markdown
+## Verification
+
+- 8/10 verified
+- 1 inaccurate
+- 1 uncertain
+```
+
+Per-file comment files append annotations below flagged comments:
+
+```markdown
+## Line 42
+
+The mutex is never released in the error path.
+
+> ✗ **Inaccurate:** The defer on line 40 releases the mutex on all paths.
+```
+
+### Configuration
+
+- `review.verify` (bool, default: `false`) — Enable verification by default.
+- `review.verify_agent` (string, default: `""`) — Agent to use for verification. Empty means use the same agent as the review.
+- `review.verify_action` (string, default: `"annotate"`) — `"annotate"` keeps all comments with annotations; `"drop"` removes inaccurate ones.
+- `--verify` CLI flag — Enable verification for a single run.
+- `--verify-agent <name>` CLI flag — Override the verification agent.
+- `--verify-action <annotate|drop>` CLI flag — Override the action policy.
+
+### Failure handling
+
+Verification is non-fatal per comment. If the verification agent fails for a specific comment (e.g., rate limit, timeout), that comment's verdict is set to `"uncertain"` with an error reason. The review proceeds with whatever verification results were collected.
+
 ## Agent Architecture
 
 ### Interface
@@ -646,17 +707,23 @@ type FileDiff struct {
     Status  string // added, modified, deleted, renamed
 }
 
+type VerificationResult struct {
+    Verdict string // "verified", "inaccurate", or "uncertain"
+    Reason  string
+}
+
 type ReviewOutput struct {
     Summary  string
     Comments []ReviewComment
 }
 
 type ReviewComment struct {
-    File     string
-    StartLine int
-    EndLine   int
-    Severity string // critical, suggestion, nit, praise
-    Body     string
+    File         string
+    StartLine    int
+    EndLine      int
+    Severity     string              // critical, suggestion, nit, praise
+    Body         string
+    Verification *VerificationResult // nil if --verify not used
 }
 ```
 
@@ -845,6 +912,11 @@ sequenceDiagram
     GH-->>CLI: existing code comments
     CLI->>Agent: ReviewInput (diff + metadata + existing comments)
     Agent-->>CLI: ReviewOutput (comments)
+    opt --verify enabled
+        CLI->>Agent: verify each comment against file diff
+        Agent-->>CLI: VerificationResult per comment
+        CLI->>CLI: annotate or drop inaccurate comments
+    end
     CLI->>FS: write ~/.local/share/prr/reviews/pr-17509-.../
     CLI->>User: summary + file list
 ```
@@ -927,6 +999,11 @@ prr/
 │   ├── rules/                    # Project-level review rules
 │   │   ├── rules.go              # Load .prr.yaml rules
 │   │   └── rules_test.go         # Rules tests
+│   ├── verify/                   # Comment veracity verification
+│   │   ├── verifier.go           # Verifier: concurrent fact-checking via secondary AI pass
+│   │   ├── verifier_test.go      # Verifier tests (mock agent, concurrency, JSON parsing)
+│   │   ├── prompt.go             # Verification system/user prompt construction
+│   │   └── prompt_test.go        # Prompt tests
 │   ├── writer/                   # Output file generation
 │   │   ├── writer.go             # Write ReviewOutput to markdown files
 │   │   ├── writer_test.go        # Writer tests
@@ -962,7 +1039,9 @@ All core logic is tested by injecting interfaces/mocks for external dependencies
 | **Prompt construction** | System prompt includes severity levels, human-writing rules, PR/local context | Assert on string content |
 | **Git client** | IsRepo, GetCurrentBranch, GetDefaultBranch (origin/HEAD → main → master), GetDiff, GetCommitCount, ListFiles, ReadFile | Mock `git` commands |
 | **Context collector** | Sibling file gathering, binary/vendor/test filtering, max lines cap, error resilience | Mock `git` client |
-| **Output writer** | Correct directory structure, file naming, markdown formatting, multi-agent nesting | Temp directory (`t.TempDir()`) |
+| **Output writer** | Correct directory structure, file naming, markdown formatting, multi-agent nesting, verification annotations | Temp directory (`t.TempDir()`) |
+| **Verifier** | Single comment verification, concurrent VerifyAll, verdict parsing (direct JSON, code fences, extra text), error resilience, annotate vs drop policies | Mock agent returning canned JSON |
+| **Verify prompts** | System prompt includes fact-checking instructions, user prompt includes comment details and file diff | Assert on string content |
 | **Config loading** | Load from YAML, fallback to defaults, invalid YAML error, round-trip | Temp directory with fixture files |
 | **History listing** | Correct parsing of review directory names, sorting, empty state | Temp directory |
 | **Clean command** | Age filtering, dry-run mode, empty state | Temp directory |
@@ -1150,6 +1229,28 @@ the session is still valid. Pull the user lookup inside the `if expired`
 branch — you'll cut a DB round-trip on every authenticated request.
 ```
 
+### Review with verification
+
+```
+$ prr 17509 --verify
+→ PR #17509: Fix user authentication race condition
+→ agent:  claude (claude-opus-4-20250514)
+→ files:  12 (3 filtered)
+→ Reviewing...
+→ Verifying comments...
+→ verified: 9/11 verified, 1 uncertain, 1 inaccurate
+
+✓ Review complete.
+→ 2 critical, 5 suggestions, 3 nits, 1 praise
+→ Output: ~/.local/share/prr/reviews/pr-17509-20250311-143000/
+```
+
+```
+$ prr 17509 --verify --verify-action drop
+→ ...
+→ verified: 9/11 verified, 1 uncertain, 1 dropped
+```
+
 ### First-time setup
 
 ```
@@ -1191,6 +1292,10 @@ Review comments are split into one markdown file per reviewed source file. This 
 ### 5. Structured AI response parsing
 
 The AI is instructed to return comments in a structured format (JSON) which `prr` parses into `ReviewComment` structs. The markdown files are then generated from these structs — not from raw AI text. This ensures consistent formatting and enables features like severity filtering (`--min-severity`), stats aggregation, and multi-agent comparison.
+
+### 6. Verification as a secondary pass, not inline
+
+Verification is a separate step after the review, not embedded in the review prompt. This is intentional — asking a model to review and self-verify in a single pass doesn't work well; a separate call with a focused fact-checking prompt produces better results. The verification agent can even be a different model (e.g., use a cheaper/faster model for verification).
 
 ## Non-Goals
 

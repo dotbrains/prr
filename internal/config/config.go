@@ -31,6 +31,9 @@ type ReviewConfig struct {
 	SeverityLevels  []string `yaml:"severity_levels"`
 	CodebaseContext bool     `yaml:"codebase_context"`
 	MaxContextLines int      `yaml:"max_context_lines"`
+	Verify          bool     `yaml:"verify"`
+	VerifyAgent     string   `yaml:"verify_agent"`
+	VerifyAction    string   `yaml:"verify_action"` // "annotate" or "drop"
 }
 
 // OutputConfig controls where review output is written.

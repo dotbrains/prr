@@ -170,6 +170,13 @@ func writeSummary(dir string, output *agent.ReviewOutput, opts WriteOptions) err
 		}
 	}
 
+	// Append verification stats if any comments were verified.
+	if vStats := verificationStats(output.Comments); vStats != "" {
+		sb.WriteString("\n## Verification\n\n")
+		sb.WriteString(vStats)
+		sb.WriteString("\n")
+	}
+
 	path := filepath.Join(dir, "summary.md")
 	if err := os.WriteFile(path, []byte(sb.String()), 0o644); err != nil {
 		return fmt.Errorf("writing summary: %w", err)
@@ -232,6 +239,16 @@ func writeFileComments(sevDir string, filePath string, comments []agent.ReviewCo
 		sb.WriteString(c.Body)
 		sb.WriteString("\n")
 
+		// Append verification annotation if present.
+		if c.Verification != nil {
+			switch c.Verification.Verdict {
+			case "inaccurate":
+				fmt.Fprintf(&sb, "\n> \u2717 **Inaccurate:** %s\n", c.Verification.Reason)
+			case "uncertain":
+				fmt.Fprintf(&sb, "\n> \u26a0 **Unverified:** %s\n", c.Verification.Reason)
+			}
+		}
+
 		if i < len(comments)-1 {
 			sb.WriteString("\n---\n")
 		}
@@ -243,6 +260,37 @@ func writeFileComments(sevDir string, filePath string, comments []agent.ReviewCo
 		return fmt.Errorf("writing comments for %s: %w", filePath, err)
 	}
 	return nil
+}
+
+// verificationStats returns a markdown summary of verification results, or "" if none.
+func verificationStats(comments []agent.ReviewComment) string {
+	var verified, inaccurate, uncertain int
+	for _, c := range comments {
+		if c.Verification == nil {
+			continue
+		}
+		switch c.Verification.Verdict {
+		case "verified":
+			verified++
+		case "inaccurate":
+			inaccurate++
+		case "uncertain":
+			uncertain++
+		}
+	}
+	total := verified + inaccurate + uncertain
+	if total == 0 {
+		return ""
+	}
+	var parts []string
+	parts = append(parts, fmt.Sprintf("- %d/%d verified", verified, total))
+	if inaccurate > 0 {
+		parts = append(parts, fmt.Sprintf("- %d inaccurate", inaccurate))
+	}
+	if uncertain > 0 {
+		parts = append(parts, fmt.Sprintf("- %d uncertain", uncertain))
+	}
+	return strings.Join(parts, "\n")
 }
 
 // safeBranchName sanitizes a branch name for use in directory names.

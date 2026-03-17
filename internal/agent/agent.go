@@ -71,6 +71,12 @@ type ReviewOutput struct {
 	Truncated bool `json:"-"` // true if the response was repaired from truncated JSON
 }
 
+// VerificationResult holds the outcome of a veracity check on a review comment.
+type VerificationResult struct {
+	Verdict string `json:"verdict"` // "verified", "inaccurate", or "uncertain"
+	Reason  string `json:"reason"`
+}
+
 // ReviewComment is a single review comment on a specific location in the code.
 type ReviewComment struct {
 	File      string `json:"file"`
@@ -78,6 +84,9 @@ type ReviewComment struct {
 	EndLine   int    `json:"end_line"`
 	Severity  string `json:"severity"` // critical, suggestion, nit, praise
 	Body      string `json:"body"`
+
+	// Verification is populated when --verify is used. Nil otherwise.
+	Verification *VerificationResult `json:"verification,omitempty"`
 }
 
 // Stats returns counts of each severity level.
