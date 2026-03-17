@@ -21,6 +21,10 @@ $ prr
 # Focus on security and performance
 $ prr 17509 --focus security,performance
 
+# Verify comments with a secondary AI pass
+$ prr 17509 --verify
+→ Verifying 10 comments... 8/10 verified, 1 inaccurate, 1 uncertain
+
 # Review any PR by URL (no cloning needed)
 $ prr https://github.com/owner/repo/pull/123`,
     local: `# Review current branch against main
@@ -91,6 +95,8 @@ review:
   max_diff_lines: 10000
   codebase_context: true
   max_context_lines: 2000
+  verify: true
+  verify_action: annotate  # or "drop"
   ignore_patterns:
     - "*.lock"
     - "go.sum"
@@ -114,7 +120,7 @@ review:
             Code Examples
           </h2>
           <p className="text-cream/70 text-base sm:text-lg lg:text-xl max-w-3xl mx-auto">
-            See prr in action — PR reviews, local diffs, and configuration
+            See prr in action — PR reviews, local diffs, verification, and configuration
           </p>
         </div>
         <div className="bg-dark-slate border border-prr-amber/30 rounded-xl overflow-hidden">

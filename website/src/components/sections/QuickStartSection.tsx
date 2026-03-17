@@ -65,6 +65,9 @@ prr
 # Focus on security issues
 prr 17509 --focus security
 
+# Verify comments for accuracy
+prr 17509 --verify
+
 # Post review to GitHub
 prr post
 

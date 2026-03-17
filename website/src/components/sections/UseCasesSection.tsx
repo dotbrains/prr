@@ -1,6 +1,6 @@
 'use client';
 
-import { GitPullRequest, GitBranch, Send, Eye, Shield, Clock } from 'lucide-react';
+import { GitPullRequest, GitBranch, Send, Eye, Shield, Clock, ShieldCheck } from 'lucide-react';
 
 export function UseCasesSection() {
   const useCases = [
@@ -28,6 +28,11 @@ export function UseCasesSection() {
       icon: <Shield className="w-6 h-6" />,
       title: 'Focused Security Audit',
       description: 'Run prr --focus security to zero in on injection, auth bypass, and crypto issues. Suppresses noise from unrelated nits.',
+    },
+    {
+      icon: <ShieldCheck className="w-6 h-6" />,
+      title: 'Verified Reviews',
+      description: 'Run prr --verify to fact-check every comment with a secondary AI pass. Catches hallucinated line numbers and wrong variable names.',
     },
     {
       icon: <Clock className="w-6 h-6" />,

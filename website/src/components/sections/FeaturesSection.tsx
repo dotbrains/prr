@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, GitPullRequest, GitBranch, Users, Send, Crosshair, FileText, HelpCircle, ArrowLeftRight } from 'lucide-react';
+import { Bot, GitPullRequest, GitBranch, Users, Send, Crosshair, FileText, HelpCircle, ArrowLeftRight, ShieldCheck } from 'lucide-react';
 
 export function FeaturesSection() {
   const features = [
@@ -48,6 +48,11 @@ export function FeaturesSection() {
       icon: <ArrowLeftRight className="w-6 h-6" />,
       title: 'Review Diffs',
       description: 'Compare two review runs with prr diff. See which comments are new, resolved, or changed between iterations.',
+    },
+    {
+      icon: <ShieldCheck className="w-6 h-6" />,
+      title: 'Comment Verification',
+      description: 'Fact-check review comments with --verify. Flag inaccurate comments or drop them with --verify-action drop.',
     },
   ];
 
