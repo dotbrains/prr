@@ -17,6 +17,7 @@ var (
 	flagFocus        string
 	flagSince        string
 	flagVerify       bool
+	flagNoVerify     bool
 	flagVerifyAgent  string
 	flagVerifyAction string
 )
@@ -52,9 +53,10 @@ func newRootCmd(version string) *cobra.Command {
 	root.Flags().BoolVar(&flagNoContext, "no-context", false, "disable codebase pattern context")
 	root.Flags().StringVar(&flagFocus, "focus", "", "focus review on specific areas (security,performance,testing)")
 	root.Flags().StringVar(&flagSince, "since", "", "incremental review: only changes since last review or a commit SHA")
-	root.Flags().BoolVar(&flagVerify, "verify", false, "verify each comment's accuracy with a secondary AI pass")
+	root.Flags().BoolVar(&flagVerify, "verify", false, "verify each comment's accuracy (enabled by default)")
+	root.Flags().BoolVar(&flagNoVerify, "no-verify", false, "disable comment verification")
 	root.Flags().StringVar(&flagVerifyAgent, "verify-agent", "", "agent to use for verification (defaults to review agent)")
-	root.Flags().StringVar(&flagVerifyAction, "verify-action", "", "action for inaccurate comments: annotate (default) or drop")
+	root.Flags().StringVar(&flagVerifyAction, "verify-action", "", "action for inaccurate comments: drop (default) or annotate")
 
 	// Subcommands
 	root.AddCommand(newAgentsCmd())

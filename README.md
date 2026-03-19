@@ -150,12 +150,17 @@ output:
     - suggestion
 ```
 
-To enable comment verification by default:
+To disable comment verification (enabled by default):
 
 ```yaml
 review:
-  verify: true
-  verify_action: drop      # or "annotate" to keep with annotations
+  verify: false
+```
+
+Or for a single run:
+
+```sh
+prr 17509 --no-verify
 ```
 
 See [SPEC.md](SPEC.md) for the full config format.

@@ -361,28 +361,46 @@ func TestParseFocusModes(t *testing.T) {
 func TestShouldVerify(t *testing.T) {
 	// Save and restore.
 	oldVerify := flagVerify
-	defer func() { flagVerify = oldVerify }()
+	oldNoVerify := flagNoVerify
+	defer func() {
+		flagVerify = oldVerify
+		flagNoVerify = oldNoVerify
+	}()
 
-	cfg := &config.Config{}
+	// Default config has verify: true.
+	cfg := config.DefaultConfig()
+	flagVerify = false
+	flagNoVerify = false
+	if !shouldVerify(cfg) {
+		t.Error("expected true by default (config.review.verify is true)")
+	}
 
-	// Neither flag nor config.
+	// --no-verify overrides config.
+	flagNoVerify = true
+	if shouldVerify(cfg) {
+		t.Error("expected false when --no-verify is set")
+	}
+
+	// --verify re-enables when config has verify: false.
+	flagNoVerify = false
+	flagVerify = true
+	cfg.Review.Verify = false
+	if !shouldVerify(cfg) {
+		t.Error("expected true when --verify flag overrides config")
+	}
+
+	// Config verify: false, no flags.
 	flagVerify = false
 	cfg.Review.Verify = false
 	if shouldVerify(cfg) {
-		t.Error("expected false when neither flag nor config is set")
+		t.Error("expected false when config.review.verify is false and no flags")
 	}
 
-	// Flag only.
+	// --no-verify takes precedence over --verify.
 	flagVerify = true
-	if !shouldVerify(cfg) {
-		t.Error("expected true when --verify flag is set")
-	}
-
-	// Config only.
-	flagVerify = false
-	cfg.Review.Verify = true
-	if !shouldVerify(cfg) {
-		t.Error("expected true when config.review.verify is true")
+	flagNoVerify = true
+	if shouldVerify(cfg) {
+		t.Error("expected false when --no-verify takes precedence")
 	}
 }
 

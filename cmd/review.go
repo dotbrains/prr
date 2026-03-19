@@ -669,9 +669,17 @@ func replaceAll(s, old, new string) string {
 	return result
 }
 
-// shouldVerify returns true if verification is enabled via flag or config.
+// shouldVerify returns true if verification is enabled.
+// --no-verify disables it; --verify re-enables if config has verify: false.
+// Default is on (config.Review.Verify defaults to true).
 func shouldVerify(cfg *config.Config) bool {
-	return flagVerify || cfg.Review.Verify
+	if flagNoVerify {
+		return false
+	}
+	if flagVerify {
+		return true
+	}
+	return cfg.Review.Verify
 }
 
 // resolveVerifyAgent returns the agent to use for verification.

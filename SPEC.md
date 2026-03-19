@@ -59,7 +59,7 @@ review:
   max_diff_lines: 10000
   codebase_context: true
   max_context_lines: 2000
-  verify: false
+  verify: true
   verify_agent: ""         # empty = use same agent as review
   verify_action: drop      # "drop" or "annotate"
   ignore_patterns:
@@ -631,10 +631,11 @@ The mutex is never released in the error path.
 
 ### Configuration
 
-- `review.verify` (bool, default: `false`) — Enable verification by default.
+- `review.verify` (bool, default: `true`) — Enable or disable verification by default.
 - `review.verify_agent` (string, default: `""`) — Agent to use for verification. Empty means use the same agent as the review.
 - `review.verify_action` (string, default: `"drop"`) — `"drop"` removes inaccurate comments; `"annotate"` keeps all comments with annotations.
-- `--verify` CLI flag — Enable verification for a single run.
+- `--verify` CLI flag — Enable verification for a single run (re-enables if config has `verify: false`).
+- `--no-verify` CLI flag — Disable verification for a single run.
 - `--verify-agent <name>` CLI flag — Override the verification agent.
 - `--verify-action <annotate|drop>` CLI flag — Override the action policy.
 

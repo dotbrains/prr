@@ -91,7 +91,8 @@ func DefaultConfig() *Config {
 			MaxDiffLines:    10000,
 			CodebaseContext: true,
 			MaxContextLines: 2000,
-			VerifyAction:    "drop",
+		Verify:          true,
+		VerifyAction:    "drop",
 			IgnorePatterns: []string{
 				"*.lock",
 				"go.sum",
