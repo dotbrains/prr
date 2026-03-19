@@ -443,9 +443,9 @@ func TestWriteFileComments_WithVerification(t *testing.T) {
 		t.Error("expected uncertain annotation")
 	}
 
-	// Verified comments should NOT have annotations.
-	if strings.Contains(s, "Verified:") {
-		t.Error("verified comments should not have annotations")
+	// Verified comments should have a ✓ Verified annotation.
+	if !strings.Contains(s, "Verified") {
+		t.Error("expected verified annotation")
 	}
 }
 

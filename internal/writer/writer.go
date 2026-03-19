@@ -242,6 +242,8 @@ func writeFileComments(sevDir string, filePath string, comments []agent.ReviewCo
 		// Append verification annotation if present.
 		if c.Verification != nil {
 			switch c.Verification.Verdict {
+			case "verified":
+				sb.WriteString("\n> \u2713 **Verified**\n")
 			case "inaccurate":
 				fmt.Fprintf(&sb, "\n> \u2717 **Inaccurate:** %s\n", c.Verification.Reason)
 			case "uncertain":
