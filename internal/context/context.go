@@ -118,6 +118,23 @@ func CollectContext(ctx context.Context, reader FileReader, baseRef string, chan
 	return result
 }
 
+// CollectFileContents reads the full source of each changed file at the given ref.
+// Errors are non-fatal per file; missing files are silently skipped.
+func CollectFileContents(ctx context.Context, reader FileReader, ref string, files []agent.FileDiff) map[string]string {
+	contents := make(map[string]string, len(files))
+	for _, f := range files {
+		if f.Status == "deleted" {
+			continue
+		}
+		content, err := reader.ReadFile(ctx, ref, f.Path)
+		if err != nil {
+			continue // non-fatal
+		}
+		contents[f.Path] = content
+	}
+	return contents
+}
+
 // uniqueDirs returns deduplicated directory paths from the changed files.
 func uniqueDirs(files []agent.FileDiff) []string {
 	seen := make(map[string]bool)

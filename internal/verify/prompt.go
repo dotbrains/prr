@@ -14,6 +14,7 @@ func BuildVerifySystemPrompt() string {
 You will be given:
 1. A review comment (file, line numbers, severity, body)
 2. The relevant file diff showing the actual code changes
+3. Optionally, the full source file content for additional context
 
 Your task is to check:
 - Do the referenced line numbers exist in the diff?
@@ -22,10 +23,12 @@ Your task is to check:
 - If a fix is suggested, is it syntactically and logically valid?
 
 IMPORTANT:
-- Be strict. If the comment claims something specific about the code, verify it against the actual diff.
+- Be strict. If the comment claims something specific about the code, verify it against the actual diff and full source file.
+- Use the full source file to understand the broader context (types, function signatures, imports, surrounding logic) when the diff alone is insufficient.
 - If line numbers are off by a small amount but the comment clearly refers to the right code, verdict is "verified".
-- If you cannot determine accuracy because the diff doesn't show enough context, verdict is "uncertain".
+- If the full source file is provided, use it to resolve ambiguities before falling back to "uncertain".
 - Only mark "inaccurate" when the comment makes a factually wrong claim about the code.
+- Only use "uncertain" when neither the diff nor the full source file provides enough information.
 
 RESPONSE FORMAT:
 Respond with valid JSON only:
@@ -42,7 +45,7 @@ Rules:
 }
 
 // BuildVerifyUserPrompt constructs the user message for verifying a single comment.
-func BuildVerifyUserPrompt(comment agent.ReviewComment, fileDiff string) string {
+func BuildVerifyUserPrompt(comment agent.ReviewComment, fileDiff, fileContent string) string {
 	var sb strings.Builder
 
 	sb.WriteString("Verify this review comment against the code diff.\n\n")
@@ -62,6 +65,11 @@ func BuildVerifyUserPrompt(comment agent.ReviewComment, fileDiff string) string 
 		sb.WriteString(fileDiff)
 	} else {
 		sb.WriteString("(no diff available for this file)")
+	}
+
+	if fileContent != "" {
+		sb.WriteString("\n\nFULL SOURCE FILE:\n")
+		sb.WriteString(fileContent)
 	}
 
 	return sb.String()

@@ -96,7 +96,7 @@ review:
   codebase_context: true
   max_context_lines: 2000
   verify: true
-  verify_action: annotate  # or "drop"
+  verify_action: drop      # or "annotate"
   ignore_patterns:
     - "*.lock"
     - "go.sum"

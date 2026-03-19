@@ -85,7 +85,7 @@ prr 17509 --no-context
 
 In both modes, `prr` automatically reads sibling files from the same directories as the changed files to give the AI context about established codebase patterns. This can be disabled with `--no-context` or `review.codebase_context: false` in the config.
 
-With `--verify`, `prr` runs a secondary AI pass on each comment to fact-check it against the actual diff — catching hallucinated line numbers, wrong variable names, and inaccurate behavioral claims. Inaccurate comments are annotated (or dropped with `--verify-action drop`).
+With `--verify`, `prr` runs a secondary AI pass on each comment to fact-check it against the actual diff and full source file — catching hallucinated line numbers, wrong variable names, and inaccurate behavioral claims. Inaccurate comments are dropped by default (or kept with annotations via `--verify-action annotate`).
 
 Output is organized into severity-based subdirectories (`critical/`, `suggestion/`, `nit/`, `praise/`), each containing one markdown file per reviewed source file — designed for direct copy-paste into GitHub's PR review interface.
 
@@ -155,7 +155,7 @@ To enable comment verification by default:
 ```yaml
 review:
   verify: true
-  verify_action: annotate  # or "drop" to remove inaccurate comments
+  verify_action: drop      # or "annotate" to keep with annotations
 ```
 
 See [SPEC.md](SPEC.md) for the full config format.

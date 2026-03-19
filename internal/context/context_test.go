@@ -282,6 +282,70 @@ func TestShouldSkipPath(t *testing.T) {
 	}
 }
 
+func TestCollectFileContents_Basic(t *testing.T) {
+	mock := newMockFileReader()
+	mock.data["feature:src/handler.go"] = "package main\nfunc Handler() {}\n"
+	mock.data["feature:src/auth.go"] = "package main\nfunc Auth() {}\n"
+
+	files := []agent.FileDiff{
+		{Path: "src/handler.go", Status: "modified"},
+		{Path: "src/auth.go", Status: "added"},
+	}
+
+	result := CollectFileContents(context.Background(), mock, "feature", files)
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(result))
+	}
+	if result["src/handler.go"] == "" {
+		t.Error("expected content for src/handler.go")
+	}
+	if result["src/auth.go"] == "" {
+		t.Error("expected content for src/auth.go")
+	}
+}
+
+func TestCollectFileContents_SkipsDeleted(t *testing.T) {
+	mock := newMockFileReader()
+	mock.data["feature:src/handler.go"] = "package main\n"
+
+	files := []agent.FileDiff{
+		{Path: "src/handler.go", Status: "modified"},
+		{Path: "src/removed.go", Status: "deleted"},
+	}
+
+	result := CollectFileContents(context.Background(), mock, "feature", files)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 entry (deleted skipped), got %d", len(result))
+	}
+	if _, ok := result["src/removed.go"]; ok {
+		t.Error("deleted file should not be in results")
+	}
+}
+
+func TestCollectFileContents_ReadError(t *testing.T) {
+	mock := newMockFileReader()
+	mock.errs["feature:src/handler.go"] = fmt.Errorf("permission denied")
+
+	files := []agent.FileDiff{
+		{Path: "src/handler.go", Status: "modified"},
+	}
+
+	result := CollectFileContents(context.Background(), mock, "feature", files)
+
+	if len(result) != 0 {
+		t.Errorf("expected 0 entries on read error, got %d", len(result))
+	}
+}
+
+func TestCollectFileContents_Empty(t *testing.T) {
+	result := CollectFileContents(context.Background(), newMockFileReader(), "feature", nil)
+	if len(result) != 0 {
+		t.Errorf("expected 0 entries for nil files, got %d", len(result))
+	}
+}
+
 func TestTruncateToLines(t *testing.T) {
 	content := "line1\nline2\nline3\nline4\nline5"
 

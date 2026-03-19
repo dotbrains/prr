@@ -23,10 +23,10 @@ func NewVerifier(a agent.Agent) *Verifier {
 	return &Verifier{agent: a}
 }
 
-// Verify checks a single review comment against its file diff.
-func (v *Verifier) Verify(ctx context.Context, comment agent.ReviewComment, fileDiff string) *agent.VerificationResult {
+// Verify checks a single review comment against its file diff and optional full source.
+func (v *Verifier) Verify(ctx context.Context, comment agent.ReviewComment, fileDiff, fileContent string) *agent.VerificationResult {
 	systemPrompt := BuildVerifySystemPrompt()
-	userPrompt := BuildVerifyUserPrompt(comment, fileDiff)
+	userPrompt := BuildVerifyUserPrompt(comment, fileDiff, fileContent)
 
 	text, err := v.agent.Generate(ctx, systemPrompt, userPrompt)
 	if err != nil {
@@ -48,8 +48,8 @@ func (v *Verifier) Verify(ctx context.Context, comment agent.ReviewComment, file
 }
 
 // VerifyAll checks all comments concurrently, returning them with verification results attached.
-// fileDiffs maps file paths to their diff content.
-func (v *Verifier) VerifyAll(ctx context.Context, comments []agent.ReviewComment, fileDiffs map[string]string) []agent.ReviewComment {
+// fileDiffs maps file paths to their diff content. fileContents maps file paths to full source.
+func (v *Verifier) VerifyAll(ctx context.Context, comments []agent.ReviewComment, fileDiffs, fileContents map[string]string) []agent.ReviewComment {
 	verified := make([]agent.ReviewComment, len(comments))
 	copy(verified, comments)
 
@@ -64,7 +64,8 @@ func (v *Verifier) VerifyAll(ctx context.Context, comments []agent.ReviewComment
 			defer func() { <-sem }()
 
 			fileDiff := fileDiffs[verified[idx].File]
-			result := v.Verify(ctx, verified[idx], fileDiff)
+			fileContent := fileContents[verified[idx].File]
+			result := v.Verify(ctx, verified[idx], fileDiff, fileContent)
 			verified[idx].Verification = result
 		}(i)
 	}
@@ -74,7 +75,7 @@ func (v *Verifier) VerifyAll(ctx context.Context, comments []agent.ReviewComment
 }
 
 // ApplyVerification processes verified comments according to the action policy.
-// action is "annotate" (default) or "drop".
+// action is "drop" (default) or "annotate".
 // Returns the processed comments and stats.
 func ApplyVerification(comments []agent.ReviewComment, action string) ([]agent.ReviewComment, VerifyStats) {
 	var stats VerifyStats

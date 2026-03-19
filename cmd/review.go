@@ -148,6 +148,13 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 		}
 	}
 
+	// Collect full file contents for verification context.
+	var fileContents map[string]string
+	if shouldVerify(cfg) {
+		reader := gitpkg.NewFileReaderAdapter(gitClient, repoPath)
+		fileContents = contextpkg.CollectFileContents(ctx, reader, headBranch, files)
+	}
+
 	// Load project rules from .prr.yaml.
 	var projectRules []string
 	if pr, _ := rules.LoadFromFile(filepath.Join(repoPath, ".prr.yaml")); pr != nil {
@@ -167,6 +174,7 @@ func runLocalReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 		Diff:            rawDiff,
 		Files:           files,
 		CodebaseContext: codebaseCtx,
+		FileContents:    fileContents,
 		ProjectRules:    projectRules,
 		FocusModes:      focusModes,
 	}
@@ -302,6 +310,22 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 		fmt.Fprintf(cmd.OutOrStdout(), "→ rules:   %d project rules\n", len(projectRules))
 	}
 
+	// Collect full file contents for verification context.
+	var fileContents map[string]string
+	if shouldVerify(cfg) {
+		var reader contextpkg.FileReader
+		localGit2 := gitpkg.NewClient(executor)
+		cwd2, _ := os.Getwd()
+		if err := localGit2.IsRepo(ctx, cwd2); err == nil {
+			reader = gitpkg.NewFileReaderAdapter(localGit2, cwd2)
+		} else if repoSlug != "" {
+			reader = ghClient
+		}
+		if reader != nil {
+			fileContents = contextpkg.CollectFileContents(ctx, reader, meta.HeadBranch, files)
+		}
+	}
+
 	focusModes := parseFocusModes()
 
 	// Build review input
@@ -314,6 +338,7 @@ func runPRReview(cmd *cobra.Command, ctx context.Context, cfg *config.Config, ar
 		Diff:                   rawDiff,
 		Files:                  files,
 		CodebaseContext:        codebaseCtx,
+		FileContents:           fileContents,
 		ExistingComments:       existingComments,
 		ExistingReviews:        existingReviews,
 		ExistingReviewComments: existingReviewComments,
@@ -365,7 +390,7 @@ func runSingleAgent(cmd *cobra.Command, ctx context.Context, cfg *config.Config,
 			vsp.Start()
 			fileDiffs := verify.FileDiffsFromInput(input.Files)
 			v := verify.NewVerifier(verifyAgent)
-			output.Comments = v.VerifyAll(ctx, output.Comments, fileDiffs)
+			output.Comments = v.VerifyAll(ctx, output.Comments, fileDiffs, input.FileContents)
 			vsp.Stop()
 
 			action := resolveVerifyAction(cfg)
@@ -473,7 +498,7 @@ func runAllAgents(cmd *cobra.Command, ctx context.Context, cfg *config.Config, i
 			} else {
 				fileDiffs := verify.FileDiffsFromInput(input.Files)
 				v := verify.NewVerifier(verifyAgent)
-				r.output.Comments = v.VerifyAll(ctx, r.output.Comments, fileDiffs)
+				r.output.Comments = v.VerifyAll(ctx, r.output.Comments, fileDiffs, input.FileContents)
 				action := resolveVerifyAction(cfg)
 				r.output.Comments, _ = verify.ApplyVerification(r.output.Comments, action)
 			}
@@ -674,7 +699,7 @@ func resolveVerifyAction(cfg *config.Config) string {
 	if cfg.Review.VerifyAction != "" {
 		return cfg.Review.VerifyAction
 	}
-	return "annotate"
+	return "drop"
 }
 
 // verifyStatsFromComments computes verification stats from already-processed comments.

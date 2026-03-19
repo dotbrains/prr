@@ -393,8 +393,8 @@ func TestResolveVerifyAction(t *testing.T) {
 	// Default when nothing set.
 	flagVerifyAction = ""
 	cfg := &config.Config{}
-	if got := resolveVerifyAction(cfg); got != "annotate" {
-		t.Errorf("expected 'annotate' default, got %q", got)
+	if got := resolveVerifyAction(cfg); got != "drop" {
+		t.Errorf("expected 'drop' default, got %q", got)
 	}
 
 	// Config override.

@@ -61,7 +61,7 @@ review:
   max_context_lines: 2000
   verify: false
   verify_agent: ""         # empty = use same agent as review
-  verify_action: annotate  # "annotate" or "drop"
+  verify_action: drop      # "drop" or "annotate"
   ignore_patterns:
     - "*.lock"
     - "go.sum"
@@ -596,7 +596,7 @@ When `--verify` is passed (or `review.verify: true` in config), `prr` runs a sec
 ### How it works
 
 1. After the review agent returns comments, `prr` creates a `Verifier` backed by an AI agent (the same review agent by default, or a different one via `--verify-agent`).
-2. Each comment is sent to the verification agent concurrently (up to 5 in parallel) along with the relevant file diff.
+2. Each comment is sent to the verification agent concurrently (up to 5 in parallel) along with the relevant file diff and the full source file content (when available) for broader context.
 3. The verification prompt asks the agent to check:
    - Do the referenced line numbers exist in the diff?
    - Are variable/function names mentioned in the comment present in the code?
@@ -604,8 +604,8 @@ When `--verify` is passed (or `review.verify: true` in config), `prr` runs a sec
    - Is any suggested fix syntactically/logically valid?
 4. The agent responds with a verdict: `"verified"`, `"inaccurate"`, or `"uncertain"`, plus a brief reason.
 5. Results are applied based on the action policy:
-   - `annotate` (default) — All comments are kept. Inaccurate/uncertain comments are annotated in the output.
-   - `drop` — Inaccurate comments are removed from the output entirely.
+   - `drop` (default) — Inaccurate comments are removed from the output entirely.
+   - `annotate` — All comments are kept. Inaccurate/uncertain comments are annotated in the output.
 
 ### Output
 
@@ -633,7 +633,7 @@ The mutex is never released in the error path.
 
 - `review.verify` (bool, default: `false`) — Enable verification by default.
 - `review.verify_agent` (string, default: `""`) — Agent to use for verification. Empty means use the same agent as the review.
-- `review.verify_action` (string, default: `"annotate"`) — `"annotate"` keeps all comments with annotations; `"drop"` removes inaccurate ones.
+- `review.verify_action` (string, default: `"drop"`) — `"drop"` removes inaccurate comments; `"annotate"` keeps all comments with annotations.
 - `--verify` CLI flag — Enable verification for a single run.
 - `--verify-agent <name>` CLI flag — Override the verification agent.
 - `--verify-action <annotate|drop>` CLI flag — Override the action policy.
@@ -699,6 +699,9 @@ type ReviewInput struct {
 
     // Incremental review: only review changes since this commit
     SinceCommit string
+
+    // Full source file contents for verification context
+    FileContents map[string]string
 }
 
 type FileDiff struct {

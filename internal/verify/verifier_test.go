@@ -35,7 +35,7 @@ func TestVerify_Verified(t *testing.T) {
 		File: "main.go", StartLine: 10, EndLine: 10, Severity: "critical", Body: "Bug here.",
 	}
 
-	result := v.Verify(context.Background(), comment, "some diff")
+	result := v.Verify(context.Background(), comment, "some diff", "package main\nfunc main() {}")
 
 	if result.Verdict != "verified" {
 		t.Errorf("expected verdict 'verified', got %q", result.Verdict)
@@ -53,7 +53,7 @@ func TestVerify_Inaccurate(t *testing.T) {
 		File: "main.go", StartLine: 5, EndLine: 5, Severity: "nit", Body: "Rename foo.",
 	}
 
-	result := v.Verify(context.Background(), comment, "diff")
+	result := v.Verify(context.Background(), comment, "diff", "")
 	if result.Verdict != "inaccurate" {
 		t.Errorf("expected 'inaccurate', got %q", result.Verdict)
 	}
@@ -67,7 +67,7 @@ func TestVerify_AgentError(t *testing.T) {
 		File: "main.go", StartLine: 1, EndLine: 1, Severity: "nit", Body: "test",
 	}
 
-	result := v.Verify(context.Background(), comment, "diff")
+	result := v.Verify(context.Background(), comment, "diff", "")
 	if result.Verdict != "uncertain" {
 		t.Errorf("expected 'uncertain' on error, got %q", result.Verdict)
 	}
@@ -81,7 +81,7 @@ func TestVerify_MalformedJSON(t *testing.T) {
 		File: "main.go", StartLine: 1, EndLine: 1, Severity: "nit", Body: "test",
 	}
 
-	result := v.Verify(context.Background(), comment, "diff")
+	result := v.Verify(context.Background(), comment, "diff", "")
 	if result.Verdict != "uncertain" {
 		t.Errorf("expected 'uncertain' on parse failure, got %q", result.Verdict)
 	}
@@ -104,7 +104,8 @@ func TestVerifyAll_Concurrent(t *testing.T) {
 		diffs[comments[i].File] = "some diff"
 	}
 
-	result := v.VerifyAll(context.Background(), comments, diffs)
+	contents := map[string]string{}
+	result := v.VerifyAll(context.Background(), comments, diffs, contents)
 
 	if len(result) != 10 {
 		t.Fatalf("expected 10 comments, got %d", len(result))

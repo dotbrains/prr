@@ -53,6 +53,9 @@ type ReviewInput struct {
 	RepoSlug string
 	HeadSHA  string
 
+	// Full source file contents at HEAD ref (for verification context)
+	FileContents map[string]string
+
 	// Incremental review: only review changes since this commit
 	SinceCommit string
 }
