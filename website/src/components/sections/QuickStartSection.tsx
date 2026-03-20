@@ -75,7 +75,10 @@ prr post
 prr describe --update
 
 # Ask a follow-up question
-prr ask "Is this thread-safe?"`}
+prr ask "Is this thread-safe?"
+
+# Browse reviews in the web UI
+prr serve --open`}
               language="bash"
             />
             <div className="mt-6 bg-prr-amber/10 border border-prr-amber/30 rounded-lg p-4 sm:p-5">

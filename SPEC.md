@@ -351,6 +351,53 @@ Changed comments:
   ~ [suggestion L42] src/auth.go: "old body" → "new body"
 ```
 
+### `prr serve`
+
+Start a local web UI to browse reviews.
+
+- `--port <n>` — Port to serve on (default: `8600`).
+- `--open` — Automatically open the browser.
+
+All HTML/CSS/JS is embedded in the Go binary via `//go:embed` — no external dependencies, no Node.js, no build step. The UI matches the `website/` color scheme (dark-slate background, amber/orange/gold accents, cream text).
+
+**API endpoints** (served under `/api/`):
+- `GET /api/reviews` — List all reviews with stats. Direct read via `filepath.Join` (O(1) per review). Response includes `Cache-Control: no-cache`.
+- `GET /api/reviews/{name}` — Full review metadata including all comments. Validates name to prevent path traversal.
+
+**Frontend** is a vanilla JS SPA with hash-based routing:
+- `#/` — Dashboard: two-column review card grid with severity badges, relative timestamps, and search.
+- `#/review/{name}` — Detail view: two-column layout with sticky sidebar and scrollable comments.
+
+**Dashboard features:**
+- Search bar filters review cards by PR number, repo slug, agent, or summary text.
+- Review cards show git merge icon for PR reviews, severity badge counts, and relative timestamps.
+
+**Detail view features:**
+- Sticky sidebar with severity filter toggles, summary, and file navigation.
+- Severity filter — toggle buttons to show/hide comment severities. Clicking a file in the nav resets the filter and scrolls to that section.
+- Clickable GitHub links — repo slug links to repo, commit SHA links to commit, file headers link to PR files tab, line numbers link to highlighted lines at the head SHA.
+- Copy to clipboard — hover a comment to reveal a copy button that copies it as markdown. Also available via ⌘K.
+- Verification badges render inline code in reason text.
+
+**⌘K command palette:**
+- Opens from any page with `⌘K` / `Ctrl+K`, also clickable from the nav bar.
+- Keyboard navigation with arrow keys, Enter to select, Escape to close.
+- Auto-scrolls the selected item into view.
+- On the dashboard: searches reviews.
+- On the detail page: shows context-aware commands first (go to dashboard, open PR on GitHub, severity filters with filled/empty circle state indicators, copy all comments as markdown), then other reviews (excluding the current one).
+- Filter commands show toast notifications with the result (e.g. "Showing suggestion only (2 comments)").
+
+```
+$ prr serve
+→ Serving reviews at http://localhost:8600
+→ Reviews dir: ~/.local/share/prr/reviews
+→ Press Ctrl+C to stop
+
+$ prr serve --port 9000 --open
+→ Serving reviews at http://localhost:9000
+→ Opening browser...
+```
+
 ### `prr clean [--days <n>]`
 
 Remove old review output. Defaults to reviews older than 30 days:
@@ -1013,6 +1060,14 @@ prr/
 │   │   ├── writer_test.go        # Writer tests
 │   │   ├── metadata.go           # Review metadata persistence
 │   │   └── metadata_test.go      # Metadata tests
+│   ├── server/                   # Web UI server (prr serve)
+│   │   ├── server.go             # HTTP handler setup, API routes, static file serving
+│   │   ├── server_test.go        # API handler tests (httptest)
+│   │   └── static/               # Embedded frontend assets (//go:embed)
+│   │       ├── index.html        # HTML shell with nav bar
+│   │       ├── style.css         # Dark theme (matches website/ colors, 11 sections)
+│   │       ├── app.js            # Vanilla JS SPA (router, pages, components, palette, utilities)
+│   │       └── favicon.svg       # prr logo favicon
 │   └── exec/                     # Command execution abstraction
 │       └── executor.go           # CommandExecutor interface + RealExecutor
 ├── .github/workflows/

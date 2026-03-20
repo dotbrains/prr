@@ -181,6 +181,30 @@ See [SPEC.md](SPEC.md) for the full config format.
 | `prr config init` | Create default config file |
 | `prr history` | List past reviews |
 | `prr clean` | Remove old review output |
+| `prr serve` | Start a local web UI to browse reviews |
+
+## Web UI
+
+Browse reviews in a local web interface:
+
+```sh
+# Start the review browser
+prr serve
+
+# Custom port + auto-open browser
+prr serve --port 9000 --open
+```
+
+All assets are embedded in the binary — no external dependencies. The UI uses the same dark theme as the marketing site.
+
+Features:
+- **Dashboard** — two-column grid of review cards with severity badges and relative timestamps
+- **Search** — filter reviews by PR number, repo, agent, or summary
+- **⌘K command palette** — quick-navigate to any review, plus context-aware commands on detail pages (filter by severity, copy all comments, open PR on GitHub)
+- **Detail view** — two-column layout with sticky sidebar (severity filter, summary, file nav) and scrollable comments
+- **GitHub integration** — clickable repo slug, commit SHA, line numbers, and file headers link directly to GitHub
+- **Copy to clipboard** — copy individual comments or all visible comments as markdown
+- **Severity filtering** — toggle severity levels to focus on what matters
 
 ## Output
 

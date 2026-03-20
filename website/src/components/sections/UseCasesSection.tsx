@@ -1,6 +1,6 @@
 'use client';
 
-import { GitPullRequest, GitBranch, Send, Eye, Shield, Clock, ShieldCheck } from 'lucide-react';
+import { GitPullRequest, GitBranch, Send, Eye, Shield, Clock, ShieldCheck, Globe } from 'lucide-react';
 
 export function UseCasesSection() {
   const useCases = [
@@ -38,6 +38,11 @@ export function UseCasesSection() {
       icon: <Clock className="w-6 h-6" />,
       title: 'Incremental Reviews',
       description: 'Use --since to only review changes since the last run. Track progress between iterations with prr diff.',
+    },
+    {
+      icon: <Globe className="w-6 h-6" />,
+      title: 'Review Browser',
+      description: 'Run prr serve to browse all past reviews in a local web UI. Filter by severity, view comments grouped by file, all without leaving the browser.',
     },
   ];
 

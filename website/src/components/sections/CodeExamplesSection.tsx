@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { CodeBlock } from '@/components/CodeBlock';
 
 export function CodeExamplesSection() {
-  const [activeTab, setActiveTab] = useState<'pr' | 'local' | 'post' | 'tools' | 'config'>('pr');
+  const [activeTab, setActiveTab] = useState<'pr' | 'local' | 'post' | 'tools' | 'serve' | 'config'>('pr');
 
   const examples = {
     pr: `# Review the current branch's PR
@@ -71,6 +71,19 @@ New comments:
   + [critical L55] src/handler.go: New nil check issue...
 Resolved comments:
   - [nit L78] src/auth.go: Renamed variable...`,
+    serve: `# Browse reviews in a local web UI
+$ prr serve
+→ Serving reviews at http://localhost:8600
+→ Reviews dir: ~/.local/share/prr/reviews
+→ Press Ctrl+C to stop
+
+# Custom port + auto-open browser
+$ prr serve --port 9000 --open
+→ Serving reviews at http://localhost:9000
+→ Opening browser...
+
+# Override reviews directory
+$ prr serve --output-dir ./my-reviews`,
     config: `# ~/.config/prr/config.yaml
 default_agent: claude-cli
 
@@ -109,6 +122,7 @@ review:
     { key: 'local' as const, label: 'Local Mode', language: 'bash' },
     { key: 'post' as const, label: 'Post & Describe', language: 'bash' },
     { key: 'tools' as const, label: 'Ask & Diff', language: 'bash' },
+    { key: 'serve' as const, label: 'Web UI', language: 'bash' },
     { key: 'config' as const, label: 'Config', language: 'yaml' },
   ];
 
