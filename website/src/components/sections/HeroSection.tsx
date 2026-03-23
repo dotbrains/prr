@@ -20,7 +20,7 @@ export function HeroSection({ onLearnMore }: HeroSectionProps) {
         <div className="text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-prr-amber/10 border border-prr-amber/20 rounded-full mb-4 sm:mb-6">
             <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-prr-amber" />
-            <span className="text-xs sm:text-sm text-prr-amber font-medium">Open Source • MIT License</span>
+            <span className="text-xs sm:text-sm text-prr-amber font-medium">Open Source • PolyForm Shield 1.0.0</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-cream leading-tight mb-4 sm:mb-6 px-4">

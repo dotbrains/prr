@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/dotbrains/prr/actions/workflows/ci.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/ci.yml)
 [![Release](https://github.com/dotbrains/prr/actions/workflows/release.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/release.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: PolyForm Shield 1.0.0](https://img.shields.io/badge/License-PolyForm%20Shield%201.0.0-blue.svg)](https://polyformproject.org/licenses/shield/1.0.0/)
 
 ![Go](https://img.shields.io/badge/-Go-00ADD8?style=flat-square&logo=go&logoColor=white)
 ![Cobra](https://img.shields.io/badge/-Cobra-00ADD8?style=flat-square&logo=go&logoColor=white)
@@ -242,4 +242,4 @@ Comments are organized into subdirectories by severity level (`critical`, `sugge
 
 ## License
 
-MIT
+This project is licensed under the [PolyForm Shield License 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/) — see [LICENSE](LICENSE) for details.
