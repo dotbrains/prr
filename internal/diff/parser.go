@@ -3,7 +3,7 @@ package diff
 import (
 	"strings"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 // Parse splits a unified diff into per-file FileDiff structs.

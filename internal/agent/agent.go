@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/dotbrains/prr/internal/gh"
+	"github.com/smeltery/prr/internal/gh"
 )
 
 // Agent is the interface all AI review providers must implement.

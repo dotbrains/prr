@@ -41,7 +41,7 @@ export function HeroSection({ onLearnMore }: HeroSectionProps) {
               Get Started
             </a>
             <a
-              href="https://github.com/dotbrains/prr"
+              href="https://github.com/smeltery/prr"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 bg-dark-gray hover:bg-dark-slate text-cream px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-lg border border-prr-amber hover:border-prr-orange transition-all"

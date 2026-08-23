@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 // BuildVerifySystemPrompt returns the system prompt for comment verification.

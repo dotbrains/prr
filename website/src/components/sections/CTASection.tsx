@@ -14,7 +14,7 @@ export function CTASection() {
         </p>
         <div className="grid sm:grid-cols-3 gap-4 sm:gap-6">
           <a
-            href="https://github.com/dotbrains/prr"
+            href="https://github.com/smeltery/prr"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-dark-gray/50 border border-prr-amber/30 hover:border-prr-amber rounded-xl p-6 sm:p-8 transition-all group hover:shadow-lg hover:shadow-prr-amber/20"
@@ -26,7 +26,7 @@ export function CTASection() {
             <p className="text-cream/60 text-xs sm:text-sm">Star the repo, fork it, and contribute</p>
           </a>
           <a
-            href="https://github.com/dotbrains/prr#readme"
+            href="https://github.com/smeltery/prr#readme"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-dark-gray/50 border border-prr-orange/30 hover:border-prr-orange rounded-xl p-6 sm:p-8 transition-all group hover:shadow-lg hover:shadow-prr-orange/20"
@@ -38,7 +38,7 @@ export function CTASection() {
             <p className="text-cream/60 text-xs sm:text-sm">README, SPEC, and configuration guide</p>
           </a>
           <a
-            href="https://github.com/dotbrains/prr/discussions"
+            href="https://github.com/smeltery/prr/discussions"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-dark-gray/50 border border-prr-gold/30 hover:border-prr-gold rounded-xl p-6 sm:p-8 transition-all group hover:shadow-lg hover:shadow-prr-gold/20"

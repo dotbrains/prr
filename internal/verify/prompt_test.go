@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 func TestBuildVerifySystemPrompt(t *testing.T) {

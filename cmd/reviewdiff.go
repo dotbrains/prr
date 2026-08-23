@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dotbrains/prr/internal/agent"
-	"github.com/dotbrains/prr/internal/writer"
+	"github.com/smeltery/prr/internal/agent"
+	"github.com/smeltery/prr/internal/writer"
 )
 
 func newReviewDiffCmd() *cobra.Command {

@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	_ "github.com/dotbrains/prr/internal/agent/claudecli" // register provider
-	_ "github.com/dotbrains/prr/internal/agent/codexcli"  // register provider
-	"github.com/dotbrains/prr/internal/config"
+	_ "github.com/smeltery/prr/internal/agent/claudecli" // register provider
+	_ "github.com/smeltery/prr/internal/agent/codexcli"  // register provider
+	"github.com/smeltery/prr/internal/config"
 )
 
 func newAgentsCmd() *cobra.Command {

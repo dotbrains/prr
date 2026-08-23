@@ -15,22 +15,22 @@ func TestParsePRURL(t *testing.T) {
 	}{
 		{
 			name:     "https URL",
-			input:    "https://github.com/dotbrains/prr/pull/42",
-			owner:    "dotbrains",
+			input:    "https://github.com/smeltery/prr/pull/42",
+			owner:    "smeltery",
 			repo:     "prr",
 			prNumber: 42,
 		},
 		{
 			name:     "http URL",
-			input:    "http://github.com/dotbrains/prr/pull/7",
-			owner:    "dotbrains",
+			input:    "http://github.com/smeltery/prr/pull/7",
+			owner:    "smeltery",
 			repo:     "prr",
 			prNumber: 7,
 		},
 		{
 			name:     "no scheme",
-			input:    "github.com/dotbrains/prr/pull/123",
-			owner:    "dotbrains",
+			input:    "github.com/smeltery/prr/pull/123",
+			owner:    "smeltery",
 			repo:     "prr",
 			prNumber: 123,
 		},

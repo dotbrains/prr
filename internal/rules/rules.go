@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	contextpkg "github.com/dotbrains/prr/internal/context"
+	contextpkg "github.com/smeltery/prr/internal/context"
 	"gopkg.in/yaml.v3"
 )
 

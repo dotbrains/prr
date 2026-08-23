@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotbrains/prr/internal/agent"
-	"github.com/dotbrains/prr/internal/writer"
+	"github.com/smeltery/prr/internal/agent"
+	"github.com/smeltery/prr/internal/writer"
 )
 
 func TestExecute_Version(t *testing.T) {

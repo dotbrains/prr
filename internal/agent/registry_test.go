@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dotbrains/prr/internal/config"
+	"github.com/smeltery/prr/internal/config"
 )
 
 func TestRegisterAndNewAgent(t *testing.T) {

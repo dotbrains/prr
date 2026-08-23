@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 func TestWrite_SingleAgent(t *testing.T) {

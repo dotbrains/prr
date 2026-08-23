@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 // maxConcurrency limits parallel verification calls to avoid rate limits.

@@ -232,8 +232,8 @@ func TestGetPRComments_Error(t *testing.T) {
 func TestGetPRReviewComments(t *testing.T) {
 	mock := &mockExecutor{
 		outputs: map[string]string{
-			"gh repo view --json nameWithOwner --jq .nameWithOwner": "dotbrains/prr\n",
-			"gh api repos/dotbrains/prr/pulls/42/comments --paginate": `[
+			"gh repo view --json nameWithOwner --jq .nameWithOwner": "smeltery/prr\n",
+			"gh api repos/smeltery/prr/pulls/42/comments --paginate": `[
 				{"user": {"login": "alice"}, "body": "This will deadlock", "path": "src/auth.go", "line": 42, "diff_hunk": "@@ -40,5 +40,5 @@", "created_at": "2025-03-10T10:00:00Z"},
 				{"user": {"login": "bob"}, "body": "Nit: rename this", "path": "src/auth.go", "line": 55, "diff_hunk": "@@ -50,5 +50,5 @@", "created_at": "2025-03-10T11:00:00Z"},
 				{"user": {"login": "alice"}, "body": "Missing error check", "path": "src/handler.go", "line": 10, "diff_hunk": "@@ -8,5 +8,5 @@", "created_at": "2025-03-10T12:00:00Z"}
@@ -291,7 +291,7 @@ func TestGetPRReviewComments_RepoError(t *testing.T) {
 func TestGetPRMetadata_WithRepoSlug(t *testing.T) {
 	mock := &mockExecutor{
 		outputs: map[string]string{
-			"gh pr view -R dotbrains/prr 42 --json number,title,body,baseRefName,headRefName": `{
+			"gh pr view -R smeltery/prr 42 --json number,title,body,baseRefName,headRefName": `{
 				"number": 42,
 				"title": "Remote PR",
 				"body": "From a URL",
@@ -300,7 +300,7 @@ func TestGetPRMetadata_WithRepoSlug(t *testing.T) {
 			}`,
 		},
 	}
-	client := NewClientWithRepo(mock, "dotbrains/prr")
+	client := NewClientWithRepo(mock, "smeltery/prr")
 
 	meta, err := client.GetPRMetadata(context.Background(), 42)
 	if err != nil {

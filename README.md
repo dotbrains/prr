@@ -2,8 +2,8 @@
 
 ![prr](./assets/og-image.svg)
 
-[![CI](https://github.com/dotbrains/prr/actions/workflows/ci.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/ci.yml)
-[![Release](https://github.com/dotbrains/prr/actions/workflows/release.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/release.yml)
+[![CI](https://github.com/smeltery/prr/actions/workflows/ci.yml/badge.svg)](https://github.com/smeltery/prr/actions/workflows/ci.yml)
+[![Release](https://github.com/smeltery/prr/actions/workflows/release.yml/badge.svg)](https://github.com/smeltery/prr/actions/workflows/release.yml)
 [![License: PolyForm Shield 1.0.0](https://img.shields.io/badge/License-PolyForm%20Shield%201.0.0-blue.svg)](https://polyformproject.org/licenses/shield/1.0.0/)
 
 ![Go](https://img.shields.io/badge/-Go-00ADD8?style=flat-square&logo=go&logoColor=white)
@@ -19,7 +19,7 @@ Run AI-powered code reviews on GitHub pull requests or local git branches. Outpu
 
 ```sh
 # Install
-go install github.com/dotbrains/prr@latest
+go install github.com/smeltery/prr@latest
 
 # Review the current branch's PR
 prr
@@ -94,27 +94,27 @@ Output is organized into severity-based subdirectories (`critical/`, `suggestion
 ### Via `go install`
 
 ```sh
-go install github.com/dotbrains/prr@latest
+go install github.com/smeltery/prr@latest
 ```
 
 ### Via Homebrew
 
 ```sh
-brew tap dotbrains/tap
+brew tap smeltery/tap
 brew install --cask prr
 ```
 
 ### Via GitHub Release
 
 ```sh
-gh release download --repo dotbrains/prr --pattern 'prr_darwin_arm64.tar.gz' --dir /tmp
+gh release download --repo smeltery/prr --pattern 'prr_darwin_arm64.tar.gz' --dir /tmp
 tar -xzf /tmp/prr_darwin_arm64.tar.gz -C /usr/local/bin
 ```
 
 ### From source
 
 ```sh
-git clone https://github.com/dotbrains/prr.git
+git clone https://github.com/smeltery/prr.git
 cd prr
 make install
 ```

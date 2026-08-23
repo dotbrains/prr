@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dotbrains/prr/internal/gh"
+	"github.com/smeltery/prr/internal/gh"
 )
 
 func TestBuildUserPrompt_NoExistingComments(t *testing.T) {

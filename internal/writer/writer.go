@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 // WriteOptions controls output behavior.

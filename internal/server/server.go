@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dotbrains/prr/internal/writer"
+	"github.com/smeltery/prr/internal/writer"
 )
 
 //go:embed static/*

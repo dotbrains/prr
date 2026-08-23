@@ -3,7 +3,7 @@ package agent
 import (
 	"fmt"
 
-	"github.com/dotbrains/prr/internal/config"
+	"github.com/smeltery/prr/internal/config"
 )
 
 // ProviderFactory creates an Agent from a name and config.

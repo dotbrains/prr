@@ -12,21 +12,21 @@ import (
 
 	"strconv"
 
-	"github.com/dotbrains/prr/internal/agent"
-	_ "github.com/dotbrains/prr/internal/agent/anthropic" // register provider
-	_ "github.com/dotbrains/prr/internal/agent/claudecli" // register provider
-	_ "github.com/dotbrains/prr/internal/agent/codexcli"  // register provider
-	_ "github.com/dotbrains/prr/internal/agent/openai"    // register provider
-	"github.com/dotbrains/prr/internal/config"
-	contextpkg "github.com/dotbrains/prr/internal/context"
-	"github.com/dotbrains/prr/internal/diff"
-	"github.com/dotbrains/prr/internal/exec"
-	"github.com/dotbrains/prr/internal/gh"
-	gitpkg "github.com/dotbrains/prr/internal/git"
-	"github.com/dotbrains/prr/internal/rules"
-	"github.com/dotbrains/prr/internal/spinner"
-	"github.com/dotbrains/prr/internal/verify"
-	"github.com/dotbrains/prr/internal/writer"
+	"github.com/smeltery/prr/internal/agent"
+	_ "github.com/smeltery/prr/internal/agent/anthropic" // register provider
+	_ "github.com/smeltery/prr/internal/agent/claudecli" // register provider
+	_ "github.com/smeltery/prr/internal/agent/codexcli"  // register provider
+	_ "github.com/smeltery/prr/internal/agent/openai"    // register provider
+	"github.com/smeltery/prr/internal/config"
+	contextpkg "github.com/smeltery/prr/internal/context"
+	"github.com/smeltery/prr/internal/diff"
+	"github.com/smeltery/prr/internal/exec"
+	"github.com/smeltery/prr/internal/gh"
+	gitpkg "github.com/smeltery/prr/internal/git"
+	"github.com/smeltery/prr/internal/rules"
+	"github.com/smeltery/prr/internal/spinner"
+	"github.com/smeltery/prr/internal/verify"
+	"github.com/smeltery/prr/internal/writer"
 )
 
 // isLocalMode returns true if --repo or --base was provided.

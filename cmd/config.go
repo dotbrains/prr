@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dotbrains/prr/internal/config"
+	"github.com/smeltery/prr/internal/config"
 )
 
 func newConfigCmd() *cobra.Command {

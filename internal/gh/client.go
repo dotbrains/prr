@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dotbrains/prr/internal/exec"
+	"github.com/smeltery/prr/internal/exec"
 )
 
 // PRMetadata contains information about a pull request.

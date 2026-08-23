@@ -3,7 +3,7 @@ package diff
 import (
 	"testing"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 func TestFilter_IgnoreLockFiles(t *testing.T) {

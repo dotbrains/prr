@@ -3,8 +3,8 @@ package cmd
 import (
 	"testing"
 
-	"github.com/dotbrains/prr/internal/agent"
-	"github.com/dotbrains/prr/internal/writer"
+	"github.com/smeltery/prr/internal/agent"
+	"github.com/smeltery/prr/internal/writer"
 )
 
 func TestBuildReviewPayload_AutoEvent(t *testing.T) {

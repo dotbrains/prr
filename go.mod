@@ -1,4 +1,4 @@
-module github.com/dotbrains/prr
+module github.com/smeltery/prr
 
 go 1.26.1
 

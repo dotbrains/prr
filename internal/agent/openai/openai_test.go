@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dotbrains/prr/internal/agent"
-	"github.com/dotbrains/prr/internal/config"
+	"github.com/smeltery/prr/internal/agent"
+	"github.com/smeltery/prr/internal/config"
 )
 
 func newTestGPT(t *testing.T, handler http.HandlerFunc) *GPT {

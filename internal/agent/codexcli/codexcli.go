@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dotbrains/prr/internal/agent"
-	"github.com/dotbrains/prr/internal/config"
-	"github.com/dotbrains/prr/internal/exec"
+	"github.com/smeltery/prr/internal/agent"
+	"github.com/smeltery/prr/internal/config"
+	"github.com/smeltery/prr/internal/exec"
 )
 
 // CodexCLI implements agent.Agent using the OpenAI Codex CLI binary.

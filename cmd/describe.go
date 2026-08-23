@@ -6,16 +6,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dotbrains/prr/internal/agent"
-	_ "github.com/dotbrains/prr/internal/agent/anthropic" // register provider
-	_ "github.com/dotbrains/prr/internal/agent/claudecli" // register provider
-	_ "github.com/dotbrains/prr/internal/agent/codexcli"  // register provider
-	_ "github.com/dotbrains/prr/internal/agent/openai"    // register provider
-	"github.com/dotbrains/prr/internal/config"
-	"github.com/dotbrains/prr/internal/diff"
-	"github.com/dotbrains/prr/internal/exec"
-	"github.com/dotbrains/prr/internal/gh"
-	"github.com/dotbrains/prr/internal/spinner"
+	"github.com/smeltery/prr/internal/agent"
+	_ "github.com/smeltery/prr/internal/agent/anthropic" // register provider
+	_ "github.com/smeltery/prr/internal/agent/claudecli" // register provider
+	_ "github.com/smeltery/prr/internal/agent/codexcli"  // register provider
+	_ "github.com/smeltery/prr/internal/agent/openai"    // register provider
+	"github.com/smeltery/prr/internal/config"
+	"github.com/smeltery/prr/internal/diff"
+	"github.com/smeltery/prr/internal/exec"
+	"github.com/smeltery/prr/internal/gh"
+	"github.com/smeltery/prr/internal/spinner"
 )
 
 func newDescribeCmd() *cobra.Command {

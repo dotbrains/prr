@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dotbrains/prr/internal/config"
-	"github.com/dotbrains/prr/internal/server"
+	"github.com/smeltery/prr/internal/config"
+	"github.com/smeltery/prr/internal/server"
 )
 
 func newServeCmd() *cobra.Command {

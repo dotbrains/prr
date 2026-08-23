@@ -6,13 +6,13 @@ import { CodeBlock } from '@/components/CodeBlock';
 export function QuickStartSection() {
   const [installMethod, setInstallMethod] = useState<'go' | 'brew' | 'release'>('go');
 
-  const goExample = `go install github.com/dotbrains/prr@latest`;
+  const goExample = `go install github.com/smeltery/prr@latest`;
 
-  const brewExample = `brew tap dotbrains/tap
+  const brewExample = `brew tap smeltery/tap
 brew install --cask prr`;
 
   const releaseExample = `# macOS Apple Silicon
-gh release download --repo dotbrains/prr \\
+gh release download --repo smeltery/prr \\
   --pattern 'prr_darwin_arm64.tar.gz' --dir /tmp
 tar -xzf /tmp/prr_darwin_arm64.tar.gz -C /usr/local/bin`;
 

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'prr — AI-Powered PR Code Review CLI',
     description: 'Run AI-powered code reviews on GitHub pull requests or local git branches. Human-like comments from Claude and GPT, structured markdown output, one command.',
-    url: 'https://prr.dotbrains.io',
+    url: 'https://prr.smeltery.io',
     siteName: 'prr',
     images: [
       {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dotbrains/prr/internal/exec"
+	"github.com/smeltery/prr/internal/exec"
 )
 
 // Client wraps raw git commands for local repo operations.

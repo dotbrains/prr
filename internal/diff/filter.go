@@ -3,7 +3,7 @@ package diff
 import (
 	"path/filepath"
 
-	"github.com/dotbrains/prr/internal/agent"
+	"github.com/smeltery/prr/internal/agent"
 )
 
 // Filter removes files matching any of the ignore patterns.

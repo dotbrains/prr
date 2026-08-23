@@ -2,8 +2,8 @@
 
 ![prr](./assets/og-image.svg)
 
-[![CI](https://github.com/dotbrains/prr/actions/workflows/ci.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/ci.yml)
-[![Release](https://github.com/dotbrains/prr/actions/workflows/release.yml/badge.svg)](https://github.com/dotbrains/prr/actions/workflows/release.yml)
+[![CI](https://github.com/smeltery/prr/actions/workflows/ci.yml/badge.svg)](https://github.com/smeltery/prr/actions/workflows/ci.yml)
+[![Release](https://github.com/smeltery/prr/actions/workflows/release.yml/badge.svg)](https://github.com/smeltery/prr/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ![Go](https://img.shields.io/badge/-Go-00ADD8?style=flat-square&logo=go&logoColor=white)
@@ -467,7 +467,7 @@ $ prr clean --days 7
 4. Resolves head branch (`--head`, or current branch via `git rev-parse --abbrev-ref HEAD`).
 5. If base == head, exits with an error.
 
-**PR mode** (default) — the `prr` command shares the same resolution pattern as other dotbrains CLIs:
+**PR mode** (default) — the `prr` command shares the same resolution pattern as other smeltery CLIs:
 1. If the positional argument is a GitHub PR URL, parse owner/repo/number from it and use `gh -R owner/repo` for all operations.
 2. If the positional argument is a number, use it as the PR number.
 3. Otherwise, run `gh pr status --json number` and extract `currentBranch.number`.
@@ -895,13 +895,13 @@ For local mode, only `git` is required. For PR mode, `gh` is required. The AI CL
 ### Via `go install`
 
 ```sh
-go install github.com/dotbrains/prr@latest
+go install github.com/smeltery/prr@latest
 ```
 
 ### Via Homebrew
 
 ```sh
-brew tap dotbrains/tap
+brew tap smeltery/tap
 brew install --cask prr
 ```
 
@@ -909,7 +909,7 @@ brew install --cask prr
 
 ```sh
 # macOS Apple Silicon
-gh release download --repo dotbrains/prr --pattern 'prr_darwin_arm64.tar.gz' --dir /tmp
+gh release download --repo smeltery/prr --pattern 'prr_darwin_arm64.tar.gz' --dir /tmp
 tar -xzf /tmp/prr_darwin_arm64.tar.gz -C /usr/local/bin
 ```
 
@@ -918,7 +918,7 @@ Available archives: `prr_darwin_arm64`, `prr_darwin_amd64`, `prr_linux_arm64`, `
 ### From source
 
 ```sh
-git clone https://github.com/dotbrains/prr.git
+git clone https://github.com/smeltery/prr.git
 cd prr
 make install
 ```
@@ -1157,11 +1157,11 @@ builds:
 
 homebrew_casks:
   - repository:
-      owner: dotbrains
+      owner: smeltery
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     name: prr
-    homepage: https://github.com/dotbrains/prr
+    homepage: https://github.com/smeltery/prr
     description: AI-powered PR code review CLI
     license: "MIT"
     binaries: [prr]

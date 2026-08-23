@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dotbrains/prr/internal/config"
-	"github.com/dotbrains/prr/internal/writer"
+	"github.com/smeltery/prr/internal/config"
+	"github.com/smeltery/prr/internal/writer"
 )
 
 func newHistoryCmd() *cobra.Command {

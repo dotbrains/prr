@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/dotbrains/prr/cmd"
+	"github.com/smeltery/prr/cmd"
 )
 
 var version = "dev"

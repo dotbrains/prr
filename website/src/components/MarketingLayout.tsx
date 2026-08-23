@@ -50,7 +50,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
           </a>
           <div className="flex items-center gap-3 ml-2">
             <a
-              href="https://github.com/dotbrains/prr"
+              href="https://github.com/smeltery/prr"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-dark-gray hover:bg-dark-slate border border-prr-amber text-cream rounded-lg transition-colors text-sm font-medium"
@@ -105,7 +105,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
             </a>
             <div className="pt-4 space-y-3 border-t border-prr-amber/20">
               <a
-                href="https://github.com/dotbrains/prr"
+                href="https://github.com/smeltery/prr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-dark-gray hover:bg-dark-slate border border-prr-amber text-cream rounded-lg transition-colors text-sm font-medium w-full"
@@ -148,7 +148,7 @@ export function MarketingFooter() {
             </p>
             <div className="flex items-center gap-3">
               <a
-                href="https://github.com/dotbrains/prr"
+                href="https://github.com/smeltery/prr"
                 className="text-cream/60 hover:text-cream transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -203,13 +203,13 @@ export function MarketingFooter() {
             <h4 className="text-cream font-semibold mb-4 text-sm uppercase tracking-wider">Resources</h4>
             <ul className="space-y-3">
               <li>
-                <a href="https://github.com/dotbrains/prr#readme" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/smeltery/prr#readme" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
                   Documentation
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </li>
               <li>
-                <a href="https://github.com/dotbrains/prr/blob/master/SPEC.md" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/smeltery/prr/blob/master/SPEC.md" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
                   Specification
                   <ExternalLink className="w-3 h-3" />
                 </a>
@@ -220,19 +220,19 @@ export function MarketingFooter() {
             <h4 className="text-cream font-semibold mb-4 text-sm uppercase tracking-wider">Community</h4>
             <ul className="space-y-3">
               <li>
-                <a href="https://github.com/dotbrains/prr" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/smeltery/prr" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
                   GitHub Repository
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </li>
               <li>
-                <a href="https://github.com/dotbrains/prr/issues" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/smeltery/prr/issues" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
                   Report Issues
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </li>
               <li>
-                <a href="https://github.com/dotbrains/prr/discussions" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/smeltery/prr/discussions" className="text-cream/70 hover:text-cream text-sm transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer">
                   Discussions
                   <ExternalLink className="w-3 h-3" />
                 </a>

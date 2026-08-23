@@ -9,11 +9,11 @@ builds:
 
 homebrew_casks:
   - repository:
-      owner: dotbrains
+      owner: smeltery
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     name: prr
-    homepage: https://github.com/dotbrains/prr
+    homepage: https://github.com/smeltery/prr
     description: AI-powered PR code review CLI
     license: "MIT"
     binaries: [prr]
